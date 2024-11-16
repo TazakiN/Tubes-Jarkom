@@ -1,5 +1,5 @@
-#ifndef socket_h
-#define socket_h
+#ifndef SOCKET_HPP
+#define SOCKET_HPP
 
 #include <sys/socket.h>
 #include <string>
@@ -46,8 +46,13 @@ private:
     TCPStatusEnum status;
 
 public:
+    TCPSocket(const std::string &ip, int32_t port);
+    ~TCPSocket();
+    std::string getIP();
+    int32_t getPort();
+
     void listen();
-    void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
+    void send(std::string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
     void close();
 };
