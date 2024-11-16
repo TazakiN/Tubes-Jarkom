@@ -28,13 +28,11 @@ int main(int argc, char *argv[])
 
     if (choice == 1)
     {
-        printColored("[i] Node is now a sender", Color::BLUE);
         Server server(ip, port);
         server.run();
     }
     else
     {
-        printColored("[i] Node is now a receiver", Color::BLUE);
         Client client(ip, port);
         client.run();
     }
