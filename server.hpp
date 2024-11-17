@@ -14,12 +14,12 @@ private:
     string saveToFile(const string &data);
     string getFilePath();
 
+    string filePath;
+
 public:
     Server(const string &ip, int port);
     void run();
-    void handleMessage(void *buffer) override;
-
-    // dapetin input dari user
+    void handleMessage(void *buffer, sockaddr_in *src_addr) override;
 };
 
 #endif

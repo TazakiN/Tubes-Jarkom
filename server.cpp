@@ -2,6 +2,9 @@
 #include <iostream>
 #include <fstream>
 #include "utils.hpp"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <thread>
 
 Server::Server(const string &ip, int port)
 {
@@ -12,8 +15,6 @@ void Server::run()
 {
     printColored("[i] Node is now a sender", Color::BLUE);
     int mode = inputMethodMenu();
-
-    string filePath;
 
     if (mode == 1)
     {
@@ -42,15 +43,74 @@ void Server::run()
         }
     }
 
-    // TODO:  kirim file ke client (file ada di filePath)
+    // Verify file exists and is readable
+    if (!std::ifstream(filePath).good())
+    {
+        printColored("[!] Cannot access file: " + filePath, Color::RED);
+        return;
+    }
 
+    connection->listen();
     printColored("[i] Listening to the broadcast port for clients.", Color::BLUE);
+    while (true)
+    {
+        Segment receivedSegment;
+        struct sockaddr_in client_addr;
+        socklen_t addr_len = sizeof(client_addr);
+
+        int32_t bytes_received = connection->recvFrom(&receivedSegment, sizeof(receivedSegment), &client_addr);
+        if (bytes_received > 0)
+        {
+            if (receivedSegment.flags == SYN_FLAG)
+            {
+                std::thread(&Server::handleMessage, this, &receivedSegment, &client_addr).detach();
+            }
+            else
+            {
+                handleMessage(&receivedSegment, &client_addr);
+            }
+        }
+    }
 }
 
-void Server::handleMessage(void *buffer)
+void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
 {
-    // Implementasi dari handleMessage()
-    // Tambahkan logika penanganan pesan di sini
+    Segment *segment = (Segment *)buffer;
+    // Dapatkan IP dan port klien
+    string client_ip = inet_ntoa(client_addr->sin_addr);
+    int client_port = ntohs(client_addr->sin_port);
+
+    if (segment->flags == SYN_FLAG)
+    {
+        // Penanganan SYN seperti sebelumnya
+        printColored("[+] [Handshake] [S=" + to_string(segment->seqNum) + "] Received SYN from " + client_ip + ":" + to_string(client_port), Color::GREEN);
+
+        // Membuat segmen SYN-ACK
+        Segment synAckSegment = synAck(segment->seqNum);
+        synAckSegment.ackNum = segment->seqNum + 1;
+
+        // Kirim segmen SYN-ACK ke klien
+        connection->sendTo(client_addr, &synAckSegment, sizeof(synAckSegment));
+
+        printColored("[+] [Handshake] [A=" + to_string(synAckSegment.ackNum) + "] [S=" + to_string(synAckSegment.seqNum) + "] Sent SYN-ACK to " + client_ip + ":" + to_string(client_port), Color::GREEN);
+
+        // Perbarui nomor sequence server
+        uint32_t server_seq_num = synAckSegment.ackNum;
+        connection->setStatus(TCPStatusEnum::SYN_RECEIVED);
+    }
+    else if (segment->flags == ACK_FLAG)
+    {
+        printColored("[+] [Handshake] [A=" + to_string(segment->ackNum) + "] Received ACK from " + client_ip + ":" + to_string(client_port), Color::GREEN);
+        connection->setStatus(TCPStatusEnum::ESTABLISHED);
+        printColored("[~] Connection established with " + client_ip + ":" + to_string(client_port), Color::PURPLE);
+        printColored("[+] Sending file to " + client_ip + ":" + to_string(client_port), Color::GREEN);
+
+        // TODO: Implement file sending
+    }
+    else
+    {
+        printColored("[!] Received unexpected segment", Color::RED);
+    }
 }
 
 int Server::inputMethodMenu()
@@ -84,7 +144,7 @@ string Server::getFilePath()
 
 string Server::saveToFile(const string &data)
 {
-    string fileName = "user_input.txt";
+    string fileName = "input/user_input.txt";
     ofstream file(fileName);
     if (!file)
     {
