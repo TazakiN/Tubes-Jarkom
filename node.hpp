@@ -2,6 +2,7 @@
 #define node_h
 
 #include "socket.hpp"
+#include <netinet/in.h>
 
 /**
  * Abstract class.
@@ -15,7 +16,7 @@ protected:
 
 public:
     void run();
-    virtual void handleMessage(void *buffer) = 0;
+    virtual void handleMessage(void *buffer, struct sockaddr_in *src_addr) = 0;
 };
 
 #endif
