@@ -1,28 +1,42 @@
-#ifndef segment_h
-#define segment_h
+#ifndef SEGMENT_HPP
+#define SEGMENT_HPP
 
 #include <cstdint>
 
+const uint32_t MAX_PAYLOAD_SIZE = 1460;
 struct Segment
 {
     uint16_t sourcePort : 16;
-    uint16_t destPort;
-    // todo continue
+    uint16_t destPort : 16;
+    uint32_t seqNum : 32;
+    uint32_t ackNum : 32;
 
     struct
     {
         unsigned int data_offset : 4;
         unsigned int reserved : 4;
-    };
+    }; // 8 bits
 
-    struct
-    {
-        unsigned int cwr : 1;
-        // todo continue ...
-    } flags;
+    // struct
+    // {
+    //     unsigned int cwr : 1;
+    //     unsigned int ece : 1;
+    //     unsigned int urg : 1;
+    //     unsigned int ack : 1;
+    //     unsigned int psh : 1;
+    //     unsigned int rst : 1;
+    //     unsigned int syn : 1;
+    //     unsigned int fin : 1; // tapi disini cuman bakal pake ack, syn, fin doang
+    // } flags;                  // total ada 8 bit
 
-    uint16_t window;
-    // todo continue
+    uint8_t flags : 8;
+
+    uint16_t window : 16;
+    uint16_t checksum : 16;
+    uint16_t urgentPointer : 16;
+
+    // options keknya gausah
+    uint8_t payloadSize : 8;
     uint8_t *payload;
 } __attribute__((packed));
 
@@ -61,7 +75,7 @@ Segment finAck();
 uint8_t *calculateChecksum(Segment segment);
 
 /**
- * Return a new segment with a calcuated checksum fields
+ * Return a new segment with a calculated checksum fields
  */
 Segment updateChecksum(Segment segment);
 
