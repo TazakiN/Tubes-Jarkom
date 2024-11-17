@@ -2,6 +2,7 @@
 #define CLIENT_HPP
 
 #include "node.hpp"
+#include <vector>
 
 class Client : public Node
 {
@@ -14,10 +15,13 @@ private:
 
     void getServerInfo();
 
+    void sendSYN();
+    void sendACK(Segment *segment);
+
 public:
     Client(const std::string &ip, int port);
     void run();
-    void handleMessage(void *buffer) override;
+    void handleMessage(void *buffer, struct sockaddr_in *client_addr) override;
 };
 
 #endif
