@@ -87,7 +87,6 @@ void Client::sendSYN()
     uint32_t client_seq_num = rand();
 
     // Create a SYN segment
-    printColored("[~] Generating SYN segment", Color::PURPLE);
     Segment synSeg = syn(client_seq_num);
 
     // Send the SYN segment to the server

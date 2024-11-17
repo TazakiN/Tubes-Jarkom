@@ -51,10 +51,6 @@ void TCPSocket::listen()
     {
         std::cerr << "Error binding socket" << std::endl;
     }
-    else
-    {
-        cout << "Socket bound to " << ip << ":" << port << endl;
-    }
 
     status = TCPStatusEnum::LISTEN;
 }
