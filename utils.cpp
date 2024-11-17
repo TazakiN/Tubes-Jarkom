@@ -25,6 +25,9 @@ void printColored(const std::string &message, Color color, bool newLine)
     case Color::WHITE:
         std::cout << "\033[37m"; // White
         break;
+    case Color::PURPLE:
+        std::cout << "\033[35m"; // Purple
+        break;
     }
 
     std::cout << message << "\033[0m"; // Reset color

@@ -9,7 +9,8 @@ enum class Color
     YELLOW,
     RED,
     BLUE,
-    WHITE
+    WHITE,
+    PURPLE
 };
 void printColored(const std::string &message, Color color);
 void printColored(const std::string &message, Color color, bool newLine);
