@@ -16,6 +16,8 @@ TCPSocket::TCPSocket(const std::string &ip, int32_t port) : ip(ip), port(port), 
     {
         std::cerr << "Error creating socket" << std::endl;
     }
+
+    segmentHandler = new SegmentHandler();
 }
 
 // Destructor
@@ -118,4 +120,14 @@ void TCPSocket::close()
 void TCPSocket::setStatus(TCPStatusEnum status)
 {
     this->status = status;
+}
+
+TCPStatusEnum TCPSocket::getStatus()
+{
+    return status;
+}
+
+SegmentHandler *TCPSocket::getSegmentHandler()
+{
+    return segmentHandler;
 }

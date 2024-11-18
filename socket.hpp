@@ -23,7 +23,8 @@ enum TCPStatusEnum
     FIN_WAIT_2 = 5,
     CLOSE_WAIT = 6,
     CLOSING = 7,
-    LAST_ACK = 8
+    LAST_ACK = 8,
+    CLOSED = 9
 };
 
 class TCPSocket
@@ -60,6 +61,9 @@ public:
     void close();
 
     void setStatus(TCPStatusEnum status);
+    TCPStatusEnum getStatus();
+
+    SegmentHandler *getSegmentHandler();
 };
 
 #endif
