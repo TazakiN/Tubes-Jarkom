@@ -37,7 +37,7 @@ struct Segment
 
     // options keknya gausah
     uint8_t payloadSize : 8;
-    uint8_t *payload;
+    uint8_t payload[MAX_PAYLOAD_SIZE];
 } __attribute__((packed));
 
 const uint8_t FIN_FLAG = 1;
@@ -45,6 +45,11 @@ const uint8_t SYN_FLAG = 2;
 const uint8_t ACK_FLAG = 16;
 const uint8_t SYN_ACK_FLAG = SYN_FLAG | ACK_FLAG;
 const uint8_t FIN_ACK_FLAG = FIN_FLAG | ACK_FLAG;
+
+/**
+ * Create a new Segment with default values
+ */
+Segment createSegment();
 
 /**
  * Generate Segment that contain SYN packet

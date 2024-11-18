@@ -10,7 +10,7 @@ Segment createSegment()
     seg.window = 65535;
     seg.urgentPointer = 0;
     seg.payloadSize = 0;
-    seg.payload = nullptr;
+    memset(seg.payload, 0, MAX_PAYLOAD_SIZE);
     return seg;
 }
 
