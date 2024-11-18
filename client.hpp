@@ -16,7 +16,18 @@ private:
     void getServerInfo();
 
     void sendSYN();
+    void handleFileData(Segment *segment);
     void sendACK(Segment *segment);
+
+    std::vector<uint8_t> receivedData;
+    uint32_t initialSeqNum;
+    uint32_t lastAckedSeqNum;
+
+    size_t totalDataSize;
+
+    int received_seg;
+
+    void handleFileTransferFin();
 
 public:
     Client(const std::string &ip, int port);
