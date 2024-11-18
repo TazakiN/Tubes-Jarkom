@@ -1,5 +1,5 @@
-#ifndef segment_handler_h
-#define segment_handler_h
+#ifndef SEGMENT_HANDLER_HPP
+#define SEGMENT_HANDLER_HPP
 
 #include "segment.hpp"
 
@@ -14,10 +14,19 @@ private:
     uint32_t dataIndex;
     Segment *segmentBuffer; // or use std vector if you like
 
+    void cleanup();
+
+    void initializeBuffer();
+
+    Segment createDataSegment(const uint8_t *data, uint32_t size);
+
     void generateSegments();
 
 public:
+    SegmentHandler();
+    ~SegmentHandler();
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
+    void setCurrentNumbers(uint32_t seqNum, uint32_t ackNum);
     uint8_t getWindowSize();
     Segment *advanceWindow(uint8_t size);
 };
