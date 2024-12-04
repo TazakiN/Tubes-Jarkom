@@ -3,6 +3,7 @@
 
 #include "node.hpp"
 #include <vector>
+#include <unordered_map>
 
 class Client : public Node
 {
@@ -28,6 +29,15 @@ private:
     int received_seg;
 
     void handleFileTransferFin();
+    void sendFileACK(Segment *segment);
+    bool isContiguous(uint32_t start, uint32_t end);
+
+    // sliding window
+    uint32_t RWS;
+    uint32_t LFR;
+    uint32_t LAF;
+    uint32_t SeqNumACK;
+    std::unordered_map<uint32_t, Segment> buffer;
 
 public:
     Client(const std::string &ip, int port);

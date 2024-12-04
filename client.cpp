@@ -53,6 +53,9 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
     if (segment->flags == SYN_ACK_FLAG)
     {
         printColored("[+] [Handshake] [A=" + std::to_string(segment->ackNum) + "] [S=" + std::to_string(segment->seqNum) + "] Received SYN-ACK request from " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
+        RWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
+        LFR = segment->seqNum;
+        LAF = LFR + RWS;
         sendACK(segment);
     }
     // TODO: Implement file receiving
@@ -61,6 +64,7 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
         printColored("[+] Received data segment with sequence number: " + to_string(segment->seqNum), Color::GREEN);
         // print payload
         std::string payload((char *)segment->payload, segment->payloadSize);
+
         handleFileData(segment);
     }
     else if (segment->flags == FIN_FLAG)
@@ -121,11 +125,48 @@ void Client::sendSYN()
     connection->setStatus(TCPStatusEnum::SYN_SENT);
 }
 
-void Client::handleFileData(Segment *segment)
-{
+// void Client::handleFileData(Segment *segment)
+// {
+//     if (!receivedData.empty() && segment->seqNum <= lastAckedSeqNum)
+//     {
+//         // Duplicate segment, ignore
+//         return;
+//     }
+
+//     uint32_t offset = segment->seqNum - initialSeqNum;
+
+//     if (receivedData.size() < offset + segment->payloadSize)
+//     {
+//         receivedData.resize(offset + segment->payloadSize);
+//     }
+
+//     memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
+
+//     if (offset + segment->payloadSize > totalDataSize)
+//     {
+//         totalDataSize = offset + segment->payloadSize;
+//     }
+
+//     received_seg++;
+//     printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [S=" + to_string(segment->seqNum) + "] ACKed", Color::GREEN);
+//     // Send ACK
+//     Segment ackSegment = ack(segment->seqNum + segment->payloadSize, segment->seqNum + 1);
+
+//     connection->send(server_ip, server_port, &ackSegment, sizeof(ackSegment));
+
+//     lastAckedSeqNum = segment->seqNum;
+//     printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [A=" + to_string(ackSegment.ackNum) + "] Sent ACK", Color::GREEN);
+// }
+
+void Client::handleFileData(Segment *segment) {
+    if (segment->seqNum <= LFR || segment->seqNum > LAF) {
+        printColored("[!] Out-of-window packet discarded: SeqNum=" + to_string(segment->seqNum), Color::RED);
+        return;
+    }
+
     if (!receivedData.empty() && segment->seqNum <= lastAckedSeqNum)
     {
-        // Duplicate segment, ignore
+        printColored("[!] Duplicate: SeqNum=" + to_string(segment->seqNum), Color::RED);
         return;
     }
 
@@ -136,22 +177,28 @@ void Client::handleFileData(Segment *segment)
         receivedData.resize(offset + segment->payloadSize);
     }
 
-    memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
-
     if (offset + segment->payloadSize > totalDataSize)
     {
         totalDataSize = offset + segment->payloadSize;
     }
 
-    received_seg++;
-    printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [S=" + to_string(segment->seqNum) + "] ACKed", Color::GREEN);
-    // Send ACK
-    Segment ackSegment = ack(segment->seqNum + segment->payloadSize, segment->seqNum + 1);
+    memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
 
-    connection->send(server_ip, server_port, &ackSegment, sizeof(ackSegment));
+    // Update LFR and LAF if all packets are contiguous
+    if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum)) {
+        LFR = segment->seqNum;
+        LAF = LFR + RWS;
+        lastAckedSeqNum = segment->seqNum;
+        sendFileACK(segment);
+        printColored("[~] [Established] Waiting for segments to be sent", Color::YELLOW);
+    }
+}
 
-    lastAckedSeqNum = segment->seqNum;
-    printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [A=" + to_string(ackSegment.ackNum) + "] Sent ACK", Color::GREEN);
+void Client::sendFileACK(Segment *segment) {
+    Segment ackSeg = ack(segment->seqNum, segment->seqNum + MAX_PAYLOAD_SIZE);
+    connection->send(server_ip, server_port, &ackSeg, sizeof(ackSeg));
+    // printColored("[+] Sent ACK: SeqNum=" + to_string(ackSeg.ackNum), Color::GREEN);
+    printColored("[+] [Established] [Seg " + to_string(((segment->seqNum - initialSeqNum)/MAX_PAYLOAD_SIZE) + 1) + "] [A=" + to_string(ackSeg.ackNum) + "] Sent ACK", Color::GREEN);
 }
 
 void Client::handleFileTransferFin()
@@ -175,4 +222,16 @@ void Client::handleFileTransferFin()
     Segment finAckSegment = finAck();
     connection->send(server_ip, server_port, &finAckSegment, sizeof(finAckSegment));
     printColored("[+] [Closing] Sending FIN-ACK request to " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
+}
+
+
+
+bool Client::isContiguous(uint32_t start, uint32_t end) {
+    for (uint32_t seq = start; seq <= end; seq += MAX_PAYLOAD_SIZE) {
+        uint32_t offset = seq - initialSeqNum;
+        if (!receivedData[offset]){
+            return false;
+        }
+    }
+    return true;
 }
