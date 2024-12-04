@@ -49,9 +49,10 @@ void TCPSocket::listen()
     memset(&(addr.sin_zero), '\0', 8);
 
     // Bind the socket
-    if (bind(this->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    if (::bind(this->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        std::cerr << "Error binding socket" << std::endl;
+        perror("Error binding socket");
+
     }
 
     status = TCPStatusEnum::LISTEN;
