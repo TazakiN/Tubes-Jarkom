@@ -17,8 +17,16 @@ private:
     void handleFileTransferAck(Segment *segment, sockaddr_in *client_addr);
     void handleFINACK(Segment *segment, sockaddr_in *client_addr);
     string getFilePath();
+    void startTimer(Segment segment);
 
     string filePath;
+
+    // sliding window
+    uint32_t SWS;
+    uint32_t LAR;
+    uint32_t LFS;
+    uint32_t initialSeqNum;
+    // std::unordered_map<uint32_t, uint64_t> timers;
 
 public:
     Server(const string &ip, int port);
