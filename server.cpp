@@ -111,16 +111,19 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
         if (connection->getStatus() == TCPStatusEnum::SYN_RECEIVED)
         {
             printColored("[+] [Handshake] [A=" + to_string(segment->ackNum) + "] Received ACK from " + client_ip + ":" + to_string(client_port), Color::GREEN);
-            if (segment->ackNum == handshakeSeqNum + 1) {
+            if (segment->ackNum == handshakeSeqNum + 1)
+            {
                 connection->setStatus(TCPStatusEnum::ESTABLISHED);
                 printColored("[~] Connection established with " + client_ip + ":" + to_string(client_port), Color::PURPLE);
 
                 SWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
-                LAR = initialSeqNum-MAX_PAYLOAD_SIZE;
+                LAR = initialSeqNum - MAX_PAYLOAD_SIZE;
                 LFS = LAR + SWS;
 
                 initTransfer(segment, client_addr);
-            } else {
+            }
+            else
+            {
                 printColored("[!] [Handshake] ACK number doesn't match!", Color::RED);
             }
         }
@@ -154,9 +157,14 @@ int Server::inputMethodMenu()
 
 string Server::getUserInput()
 {
-    printColored("[?] Please enter your input: ", Color::YELLOW, false);
+    printColored("[?] Please enter your input (max 1024 characters): ", Color::YELLOW, false);
     string input;
     getline(cin, input);
+    if (input.length() > 1024)
+    {
+        printColored("[!] Input exceeds maximum allowed length.", Color::RED);
+        return "";
+    }
     return input;
 }
 
@@ -211,14 +219,16 @@ void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
     delete[] fileData;
 }
 
-void Server::sendNextWindow(struct sockaddr_in *client_addr) {
+void Server::sendNextWindow(struct sockaddr_in *client_addr)
+{
     SegmentHandler *segmentHandler = connection->getSegmentHandler();
     uint8_t windowSize = segmentHandler->getWindowSize();
-    int adv_size = (SWS-(LFS-LAR)) / MAX_PAYLOAD_SIZE;
+    int adv_size = (SWS - (LFS - LAR)) / MAX_PAYLOAD_SIZE;
     Segment *segments = segmentHandler->advanceWindow(adv_size);
     LFS = LAR + SWS;
 
-    if (adv_size == 0) {
+    if (adv_size == 0)
+    {
         adv_size = DEFAULT_WINDOW_SIZE;
     }
 
@@ -231,7 +241,8 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr) {
         return;
     }
 
-    for (int i = DEFAULT_WINDOW_SIZE-adv_size; i < DEFAULT_WINDOW_SIZE; i++) {
+    for (int i = DEFAULT_WINDOW_SIZE - adv_size; i < DEFAULT_WINDOW_SIZE; i++)
+    {
         if (segments[i].payloadSize > 0)
         {
             connection->sendTo(client_addr, &segments[i], sizeof(Segment));
