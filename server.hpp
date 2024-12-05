@@ -3,8 +3,13 @@
 
 #include "node.hpp"
 #include <unistd.h>
+#include <unordered_map>
+#include <thread>
+#include <mutex>
 
 using namespace std;
+
+const int TIMEOUT_INTERVAL = 1000;
 
 class Server : public Node
 {
@@ -18,7 +23,7 @@ private:
     void handleFileTransferAck(Segment *segment, sockaddr_in *client_addr);
     void handleFINACK(Segment *segment, sockaddr_in *client_addr);
     string getFilePath();
-    void startTimer(Segment segment);
+    void startTimer(Segment segment, struct sockaddr_in *client_addr);
 
     string filePath;
 
@@ -28,8 +33,8 @@ private:
     uint32_t LFS;
     uint32_t initialSeqNum;
     uint32_t handshakeSeqNum;
-    // std::unordered_map<uint32_t, uint64_t> timers;
-
+    std::unordered_map<uint32_t, std::thread> timers;
+    std::mutex timerMutex;  
 public:
     Server(const string &ip, int port);
     void run();

@@ -235,23 +235,53 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr) {
         if (segments[i].payloadSize > 0)
         {
             connection->sendTo(client_addr, &segments[i], sizeof(Segment));
+            // if (rand()%2 == 1) {
+            //     connection->sendTo(client_addr, &segments[i], sizeof(Segment));
+            // }
             printColored("[+] [Established] [Seg " + to_string(((segments[i].seqNum-initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segments[i].seqNum) + "] Sent", Color::GREEN);
 
-            startTimer(segments[i]);
+            startTimer(segments[i], client_addr);
         }
     }
     printColored("[~] [Established] Waiting for segments to be ACKed", Color::YELLOW);
 }
 
-void Server::startTimer(Segment segment) {
+void Server::startTimer(Segment segment, struct sockaddr_in *client_addr) {
 
+    timers[segment.seqNum] = std::thread([this, segment, client_addr]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_INTERVAL));
+
+        std::lock_guard<std::mutex> lock(timerMutex);
+
+        if (timers.find(segment.seqNum) != timers.end()) {
+            printColored("[!] [Timeout] [Seg " + std::to_string(((segment.seqNum-initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segment.seqNum) + "]. Retransmitting...", Color::RED);
+            connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
+            // if (rand()%2 == 1) {
+            //     connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
+            // }
+            timers.erase(segment.seqNum);
+            startTimer(segment, client_addr);
+        }
+    });
+
+    timers[segment.seqNum].detach();
 }
+
 
 // sliding window
 void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_addr) {
-    if (segment->ackNum > LAR) {
+    if (segment->ackNum-MAX_PAYLOAD_SIZE > LAR) {
+        printColored("[+] ACK received for packet with sequence number: " + std::to_string(LAR), Color::GREEN);
+        {
+            std::lock_guard<std::mutex> lock(timerMutex);
+            for (int i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){
+                auto it = timers.find(i);
+                if (it != timers.end()) {
+                    timers.erase(it);
+                }
+            }
+        }
         LAR = segment->ackNum - MAX_PAYLOAD_SIZE;
-        printColored("[+] ACK received for packet with sequence number: " + to_string(LAR), Color::GREEN);
         sendNextWindow(client_addr);
     }
 }
