@@ -30,8 +30,7 @@ void SegmentHandler::cleanup()
 
     if (dataStream != nullptr)
     {
-        // delete[] static_cast<uint8_t*>(dataStream);
-        delete[] dataStream;
+        delete[] static_cast<uint8_t*>(dataStream);
         dataStream = nullptr;
     }
 }
@@ -122,6 +121,12 @@ Segment *SegmentHandler::advanceWindow(uint8_t size)
     }
 
     // kalo udah semua data kekirim, return nullptr
+    dataIndex += size * MAX_PAYLOAD_SIZE;
+    if (dataIndex > dataSize)
+    {
+        dataIndex = dataSize;
+    }
+
    if (dataIndex >= dataSize)
     {
         return nullptr;
@@ -132,22 +137,11 @@ Segment *SegmentHandler::advanceWindow(uint8_t size)
     // Generate new segments for the window
     generateSegments();
 
-    if (size == 0) {
-        size = DEFAULT_WINDOW_SIZE;
-    }
-
     Segment *currentWindow = new Segment[DEFAULT_WINDOW_SIZE];
     for (uint8_t i = 0; i < DEFAULT_WINDOW_SIZE; i++)
     {
         currentWindow[i] = segmentBuffer[i];
         memset(&segmentBuffer[i], 0, sizeof(Segment));
-    }
-
-    // Advance the data index
-    dataIndex += size * MAX_PAYLOAD_SIZE;
-    if (dataIndex > dataSize)
-    {
-        dataIndex = dataSize;
     }
 
     return currentWindow;

@@ -4,6 +4,7 @@
 #include "node.hpp"
 #include <vector>
 #include <unordered_map>
+#include <unistd.h>
 
 class Client : public Node
 {

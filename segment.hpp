@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-const uint32_t MAX_PAYLOAD_SIZE = 1460;
-// const uint32_t MAX_PAYLOAD_SIZE = 100;
+// const uint32_t MAX_PAYLOAD_SIZE = 1460;
+const uint32_t MAX_PAYLOAD_SIZE = 100;
 const uint8_t DEFAULT_WINDOW_SIZE = 4;
 struct Segment
 {

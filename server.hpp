@@ -2,6 +2,7 @@
 #define SERVER_HPP
 
 #include "node.hpp"
+#include <unistd.h>
 
 using namespace std;
 
@@ -26,6 +27,7 @@ private:
     uint32_t LAR;
     uint32_t LFS;
     uint32_t initialSeqNum;
+    uint32_t handshakeSeqNum;
     // std::unordered_map<uint32_t, uint64_t> timers;
 
 public:

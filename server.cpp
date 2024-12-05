@@ -95,14 +95,15 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
     {
         printColored("[+] [Handshake] [S=" + to_string(segment->seqNum) + "] Received SYN from " + client_ip + ":" + to_string(client_port), Color::GREEN);
 
-        Segment synAckSegment = synAck(segment->seqNum);
+        srand(getpid());
+        handshakeSeqNum = rand();
+        Segment synAckSegment = synAck(handshakeSeqNum);
         synAckSegment.ackNum = segment->seqNum + 1;
+        initialSeqNum = segment->seqNum + 1;
 
         connection->sendTo(client_addr, &synAckSegment, sizeof(synAckSegment));
 
         printColored("[+] [Handshake] [A=" + to_string(synAckSegment.ackNum) + "] [S=" + to_string(synAckSegment.seqNum) + "] Sent SYN-ACK to " + client_ip + ":" + to_string(client_port), Color::GREEN);
-
-        uint32_t server_seq_num = synAckSegment.ackNum;
         connection->setStatus(TCPStatusEnum::SYN_RECEIVED);
     }
     else if (segment->flags == ACK_FLAG)
@@ -110,15 +111,18 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
         if (connection->getStatus() == TCPStatusEnum::SYN_RECEIVED)
         {
             printColored("[+] [Handshake] [A=" + to_string(segment->ackNum) + "] Received ACK from " + client_ip + ":" + to_string(client_port), Color::GREEN);
-            connection->setStatus(TCPStatusEnum::ESTABLISHED);
-            printColored("[~] Connection established with " + client_ip + ":" + to_string(client_port), Color::PURPLE);
+            if (segment->ackNum == handshakeSeqNum + 1) {
+                connection->setStatus(TCPStatusEnum::ESTABLISHED);
+                printColored("[~] Connection established with " + client_ip + ":" + to_string(client_port), Color::PURPLE);
 
-            SWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
-            LAR = segment->ackNum;
-            LFS = LAR + SWS;
-            initialSeqNum = segment->ackNum;
+                SWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
+                LAR = initialSeqNum-MAX_PAYLOAD_SIZE;
+                LFS = LAR + SWS;
 
-            initTransfer(segment, client_addr);
+                initTransfer(segment, client_addr);
+            } else {
+                printColored("[!] [Handshake] ACK number doesn't match!", Color::RED);
+            }
         }
         else if (connection->getStatus() == TCPStatusEnum::ESTABLISHED)
         { // Handle ACK for file transfer
@@ -198,7 +202,7 @@ void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
 
     SegmentHandler *segmentHandler = connection->getSegmentHandler();
     segmentHandler->setDataStream(fileData, fileSize);
-    segmentHandler->setCurrentNumbers(segment->ackNum, segment->seqNum + 1);
+    segmentHandler->setCurrentNumbers(initialSeqNum, initialSeqNum);
 
     printColored("[+] Sending input to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
 
@@ -206,34 +210,6 @@ void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
 
     delete[] fileData;
 }
-
-// void Server::sendNextWindow(struct sockaddr_in *client_addr)
-// {
-//     SegmentHandler *segmentHandler = connection->getSegmentHandler();
-//     uint8_t windowSize = segmentHandler->getWindowSize();
-//     Segment *segments = segmentHandler->advanceWindow(windowSize);
-
-//     if (segments == nullptr)
-//     {
-//         // All data has been sent
-//         Segment finSegment = fin();
-//         connection->sendTo(client_addr, &finSegment, sizeof(finSegment));
-//         printColored("[+] [Closing] Sending FIN request to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
-//         return;
-//     }
-
-//     // Send all segments in the window
-//     for (uint8_t i = 0; i < windowSize; i++)
-//     {
-//         if (segments[i].payloadSize > 0)
-//         {
-//             connection->sendTo(client_addr, &segments[i], sizeof(Segment));
-//             printColored("[+] [Established] [Seg " + to_string(i + 1) + "] [S=" + to_string(segments[i].seqNum) + "] Sent", Color::GREEN);
-//         }
-//     }
-
-//     delete[] segments;
-// }
 
 void Server::sendNextWindow(struct sockaddr_in *client_addr) {
     SegmentHandler *segmentHandler = connection->getSegmentHandler();
@@ -271,20 +247,11 @@ void Server::startTimer(Segment segment) {
 
 }
 
-// void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_addr)
-// {
-//     int ackIter = 1;
-//     printColored("[+] [Established] [Seg " + to_string(ackIter) + "] [A=" + to_string(segment->ackNum) + "] ACKed", Color::GREEN);
-
-//     uint8_t ackedSegments = 1;
-//     sendNextWindow(client_addr);
-// }
-
 // sliding window
 void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_addr) {
     if (segment->ackNum > LAR) {
-        LAR = segment->ackNum;
-        printColored("[+] ACK received: " + to_string(LAR), Color::GREEN);
+        LAR = segment->ackNum - MAX_PAYLOAD_SIZE;
+        printColored("[+] ACK received for packet with sequence number: " + to_string(LAR), Color::GREEN);
         sendNextWindow(client_addr);
     }
 }

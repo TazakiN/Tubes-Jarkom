@@ -53,17 +53,21 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
     if (segment->flags == SYN_ACK_FLAG)
     {
         printColored("[+] [Handshake] [A=" + std::to_string(segment->ackNum) + "] [S=" + std::to_string(segment->seqNum) + "] Received SYN-ACK request from " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
-        RWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
-        LFR = segment->seqNum;
-        LAF = LFR + RWS;
-        sendACK(segment);
+        if (segment->ackNum == initialSeqNum + 1) {
+            RWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
+            LFR = segment->ackNum - MAX_PAYLOAD_SIZE;
+            LAF = LFR + RWS;
+            sendACK(segment);
+        } else {
+            printColored("[!] [Handshake] ACK number doesn't match!", Color::RED);
+        }
     }
     // TODO: Implement file receiving
     else if (segment->payloadSize > 0)
     {
         printColored("[+] Received data segment with sequence number: " + to_string(segment->seqNum), Color::GREEN);
         // print payload
-        std::string payload((char *)segment->payload, segment->payloadSize);
+        // std::string payload((char *)segment->payload, segment->payloadSize);
 
         handleFileData(segment);
     }
@@ -113,9 +117,9 @@ void Client::getServerInfo()
 
 void Client::sendSYN()
 {
-    uint32_t client_seq_num = rand();
-
-    Segment synSeg = syn(client_seq_num);
+    srand(getpid());
+    initialSeqNum = rand();
+    Segment synSeg = syn(initialSeqNum);
 
     // Send the SYN segment to the server
     printColored("[i] Trying to contact the sender at " + server_ip + ":" + std::to_string(server_port), Color::BLUE);
