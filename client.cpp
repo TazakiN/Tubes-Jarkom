@@ -44,6 +44,11 @@ void Client::run()
         {
             handleMessage(&receivedSegment, &src_addr);
         }
+        if (connection->getStatus() == TCPStatusEnum::FIN_WAIT_2) 
+        {
+            printColored("[i] Node ended", Color::BLUE);
+            break;
+        }
     }
 }
 

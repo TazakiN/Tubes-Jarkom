@@ -25,13 +25,13 @@ void SegmentHandler::cleanup()
 {
     if (segmentBuffer != nullptr)
     {
-        for (uint8_t i = 0; i < windowSize; i++)
-        {
-            if (segmentBuffer[i].payload != nullptr)
-            {
-                delete[] segmentBuffer[i].payload;
-            }
-        }
+        // for (uint8_t i = 0; i < windowSize; i++)
+        // {
+        //     if (segmentBuffer[i].payload != nullptr)
+        //     {
+        //         delete[] segmentBuffer[i].payload;
+        //     }
+        // }
         delete[] segmentBuffer;
         segmentBuffer = nullptr;
     }
