@@ -3,7 +3,7 @@
 
 #include <sys/socket.h>
 #include <string>
-#include <functional>
+// #include <functional>
 #include "segment.hpp"
 #include "segment_handler.hpp"
 #include <netinet/in.h>

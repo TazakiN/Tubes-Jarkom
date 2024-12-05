@@ -2,8 +2,7 @@
 #include <cstring>
 #include <stdexcept>
 #include "utils.hpp"
-
-const uint8_t DEFAULT_WINDOW_SIZE = 4;
+#include <string.h>
 
 // Constructor
 SegmentHandler::SegmentHandler() : windowSize(DEFAULT_WINDOW_SIZE),
@@ -25,20 +24,13 @@ void SegmentHandler::cleanup()
 {
     if (segmentBuffer != nullptr)
     {
-        // for (uint8_t i = 0; i < windowSize; i++)
-        // {
-        //     if (segmentBuffer[i].payload != nullptr)
-        //     {
-        //         delete[] segmentBuffer[i].payload;
-        //     }
-        // }
         delete[] segmentBuffer;
         segmentBuffer = nullptr;
     }
 
     if (dataStream != nullptr)
     {
-        delete[] dataStream;
+        delete[] static_cast<uint8_t*>(dataStream);
         dataStream = nullptr;
     }
 }
@@ -47,13 +39,6 @@ void SegmentHandler::initializeBuffer()
 {
     if (segmentBuffer != nullptr)
     {
-        for (uint8_t i = 0; i < windowSize; i++)
-        {
-            if (segmentBuffer[i].payloadSize = 0)
-            {
-                delete[] segmentBuffer[i].payload;
-            }
-        }
         delete[] segmentBuffer;
         segmentBuffer = nullptr;
     }
@@ -87,7 +72,7 @@ void SegmentHandler::generateSegments()
 
     uint32_t remainingData = dataSize - dataIndex;
     uint8_t segmentsToGenerate = std::min(windowSize,
-                                          static_cast<uint8_t>((remainingData + MAX_PAYLOAD_SIZE - 1) / MAX_PAYLOAD_SIZE));
+        static_cast<uint8_t>((remainingData + MAX_PAYLOAD_SIZE - 1) / MAX_PAYLOAD_SIZE));
 
     for (uint8_t i = 0; i < segmentsToGenerate; i++)
     {
@@ -97,7 +82,6 @@ void SegmentHandler::generateSegments()
         segmentBuffer[i] = createDataSegment(
             static_cast<uint8_t *>(dataStream) + currentOffset,
             currentSize);
-
         currentSeqNum += currentSize;
     }
 
@@ -106,7 +90,6 @@ void SegmentHandler::generateSegments()
     {
         segmentBuffer[i] = createSegment();
     }
-    // printColored("[+] Generated " + std::to_string(segmentsToGenerate) + " segments", Color::GREEN);
 }
 
 void SegmentHandler::setDataStream(uint8_t *newDataStream, uint32_t newDataSize)
@@ -117,15 +100,12 @@ void SegmentHandler::setDataStream(uint8_t *newDataStream, uint32_t newDataSize)
     std::memcpy(dataStream, newDataStream, newDataSize);
     dataSize = newDataSize;
     dataIndex = 0;
-
-    generateSegments();
 }
 
 void SegmentHandler::setCurrentNumbers(uint32_t seqNum, uint32_t ackNum)
 {
     currentSeqNum = seqNum;
     currentAckNum = ackNum;
-    generateSegments();
 }
 
 uint8_t SegmentHandler::getWindowSize()
@@ -141,28 +121,28 @@ Segment *SegmentHandler::advanceWindow(uint8_t size)
     }
 
     // kalo udah semua data kekirim, return nullptr
-    if (dataIndex >= dataSize)
-    {
-        return nullptr;
-    }
-
-    Segment *currentWindow = new Segment[size];
-    for (uint8_t i = 0; i < size; i++)
-    {
-        currentWindow[i] = segmentBuffer[i];
-
-        memset(&segmentBuffer[i], 0, sizeof(Segment));
-    }
-
-    // Advance the data index
     dataIndex += size * MAX_PAYLOAD_SIZE;
     if (dataIndex > dataSize)
     {
         dataIndex = dataSize;
     }
 
+   if (dataIndex >= dataSize)
+    {
+        return nullptr;
+    }
+
+    setCurrentNumbers(currentAckNum + size*MAX_PAYLOAD_SIZE, currentAckNum + size*MAX_PAYLOAD_SIZE);
+
     // Generate new segments for the window
     generateSegments();
+
+    Segment *currentWindow = new Segment[DEFAULT_WINDOW_SIZE];
+    for (uint8_t i = 0; i < DEFAULT_WINDOW_SIZE; i++)
+    {
+        currentWindow[i] = segmentBuffer[i];
+        memset(&segmentBuffer[i], 0, sizeof(Segment));
+    }
 
     return currentWindow;
 }
