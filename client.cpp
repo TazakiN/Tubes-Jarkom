@@ -44,7 +44,7 @@ void Client::run()
         {
             handleMessage(&receivedSegment, &src_addr);
         }
-        if (connection->getStatus() == TCPStatusEnum::FIN_WAIT_2) 
+        if (connection->getStatus() == TCPStatusEnum::FIN_WAIT_2)
         {
             printColored("[i] Node ended", Color::BLUE);
             break;
@@ -58,12 +58,15 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
     if (segment->flags == SYN_ACK_FLAG)
     {
         printColored("[+] [Handshake] [A=" + std::to_string(segment->ackNum) + "] [S=" + std::to_string(segment->seqNum) + "] Received SYN-ACK request from " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
-        if (segment->ackNum == initialSeqNum + 1) {
+        if (segment->ackNum == initialSeqNum + 1)
+        {
             RWS = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE;
             LFR = segment->ackNum - MAX_PAYLOAD_SIZE;
             LAF = LFR + RWS;
             sendACK(segment);
-        } else {
+        }
+        else
+        {
             printColored("[!] [Handshake] ACK number doesn't match!", Color::RED);
         }
     }
@@ -117,7 +120,7 @@ void Client::getServerInfo()
     printColored("[?] Please enter the server port: ", Color::YELLOW, false);
     int port;
     std::cin >> port;
-    server_port = port;
+    server_port = (int)port;
 }
 
 void Client::sendSYN()
@@ -167,8 +170,10 @@ void Client::sendSYN()
 //     printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [A=" + to_string(ackSegment.ackNum) + "] Sent ACK", Color::GREEN);
 // }
 
-void Client::handleFileData(Segment *segment) {
-    if (segment->seqNum <= LFR || segment->seqNum > LAF) {
+void Client::handleFileData(Segment *segment)
+{
+    if (segment->seqNum <= LFR || segment->seqNum > LAF)
+    {
         printColored("[!] Out-of-window packet discarded: SeqNum=" + to_string(segment->seqNum), Color::RED);
         return;
     }
@@ -191,10 +196,12 @@ void Client::handleFileData(Segment *segment) {
         totalDataSize = offset + segment->payloadSize;
     }
 
-    memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
+    // memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
+    receivedData.insert(receivedData.begin() + offset, segment->payload, segment->payload + segment->payloadSize);
 
     // Update LFR and LAF if all packets are contiguous
-    if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum)) {
+    if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum))
+    {
         LFR = segment->seqNum;
         LAF = LFR + RWS;
         lastAckedSeqNum = segment->seqNum;
@@ -203,11 +210,12 @@ void Client::handleFileData(Segment *segment) {
     }
 }
 
-void Client::sendFileACK(Segment *segment) {
+void Client::sendFileACK(Segment *segment)
+{
     Segment ackSeg = ack(segment->seqNum, segment->seqNum + MAX_PAYLOAD_SIZE);
     connection->send(server_ip, server_port, &ackSeg, sizeof(ackSeg));
     // printColored("[+] Sent ACK: SeqNum=" + to_string(ackSeg.ackNum), Color::GREEN);
-    printColored("[+] [Established] [Seg " + to_string(((segment->seqNum - initialSeqNum)/MAX_PAYLOAD_SIZE) + 1) + "] [A=" + to_string(ackSeg.ackNum) + "] Sent ACK", Color::GREEN);
+    printColored("[+] [Established] [Seg " + to_string(((segment->seqNum - initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [A=" + to_string(ackSeg.ackNum) + "] Sent ACK", Color::GREEN);
 }
 
 void Client::handleFileTransferFin()
@@ -233,12 +241,13 @@ void Client::handleFileTransferFin()
     printColored("[+] [Closing] Sending FIN-ACK request to " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
 }
 
-
-
-bool Client::isContiguous(uint32_t start, uint32_t end) {
-    for (uint32_t seq = start; seq <= end; seq += MAX_PAYLOAD_SIZE) {
+bool Client::isContiguous(uint32_t start, uint32_t end)
+{
+    for (uint32_t seq = start; seq <= end; seq += MAX_PAYLOAD_SIZE)
+    {
         uint32_t offset = seq - initialSeqNum;
-        if (!receivedData[offset]){
+        if (!receivedData[offset])
+        {
             return false;
         }
     }

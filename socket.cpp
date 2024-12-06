@@ -52,7 +52,6 @@ void TCPSocket::listen()
     if (::bind(this->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         perror("Error binding socket");
-
     }
 
     status = TCPStatusEnum::LISTEN;
