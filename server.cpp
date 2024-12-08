@@ -22,7 +22,7 @@ void Server::run()
     if (retFlag)
         return;
 
-    connection->listen();
+    connection->listen(true);
     printColored("[i] Listening to the broadcast port for clients.", Color::BLUE);
     while (true)
     {
@@ -310,7 +310,8 @@ void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_
         printColored("[+] ACK received for packet with sequence number: " + std::to_string(segment->ackNum - MAX_PAYLOAD_SIZE), Color::GREEN);
         {
             std::lock_guard<std::mutex> lock(timerMutex);
-            for (u_int32_t i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){
+            for (u_int32_t i = LAR + MAX_PAYLOAD_SIZE; i <= segment->ackNum - MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE)
+            {
                 auto it = timers.find(i);
                 if (it != timers.end())
                 {

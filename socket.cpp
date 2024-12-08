@@ -39,13 +39,22 @@ int32_t TCPSocket::getPort()
 }
 
 // Listen
-void TCPSocket::listen()
+void TCPSocket::listen(bool server)
 {
 
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &addr.sin_addr);
+    if (server)
+    {
+        addr.sin_addr.s_addr = INADDR_ANY;
+    }
+    else
+    {
+        inet_pton(AF_INET, ip.c_str(), &addr.sin_addr);
+    }
+    // addr.sin_addr.s_addr = INADDR_ANY;
+    // inet_pton(AF_INET, ip.c_str(), &addr.sin_addr);
     memset(&(addr.sin_zero), '\0', 8);
 
     // Bind the socket
@@ -63,8 +72,9 @@ void TCPSocket::send(std::string ip, int32_t port, void *dataStream, uint32_t da
     // Set up the address structure
     struct sockaddr_in dest_addr;
     dest_addr.sin_family = AF_INET;
+    dest_addr.sin_addr.s_addr = INADDR_ANY;
     dest_addr.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &dest_addr.sin_addr);
+    // inet_pton(AF_INET, ip.c_str(), &dest_addr.sin_addr);
     memset(&(dest_addr.sin_zero), '\0', 8);
 
     // Send data

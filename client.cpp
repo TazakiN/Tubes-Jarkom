@@ -10,7 +10,7 @@ Client::Client(const std::string &ip, int port)
     this->self_ip = ip;
     this->self_port = port;
     connection = new TCPSocket(ip, port);
-    connection->listen();
+    connection->listen(false);
     filenameReceived = false;
 
     received_seg = 0;
@@ -26,7 +26,9 @@ void Client::run()
 
     // Receive the SYN-ACK from the server
     Segment synAckSeg;
-    int32_t bytes_received = connection->recv(&synAckSeg, sizeof(synAckSeg));
+    struct sockaddr_in src_addr;
+    int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
+    printColored(std::to_string(src_addr.sin_addr.s_addr), Color::GREEN);
     if (bytes_received > 0)
     {
         handleMessage(&synAckSeg, nullptr);
@@ -120,10 +122,10 @@ void Client::sendACK(Segment *segment)
 
 void Client::getServerInfo()
 {
-    printColored("[?] Please enter the server IP address: ", Color::YELLOW, false);
-    std::string ip;
-    std::cin >> ip;
-    server_ip = ip;
+    // printColored("[?] Please enter the server IP address: ", Color::YELLOW, false);
+    // std::string ip;
+    // std::cin >> ip;
+    // server_ip = ip;
 
     printColored("[?] Please enter the server port: ", Color::YELLOW, false);
     int port;
@@ -241,7 +243,7 @@ bool Client::isContiguous(uint32_t start, uint32_t end)
     for (uint32_t seq = start; seq <= end; seq += MAX_PAYLOAD_SIZE)
     {
         uint32_t offset = seq - initialSeqNum;
-        if (!receivedIndex[offset/MAX_PAYLOAD_SIZE])
+        if (!receivedIndex[offset / MAX_PAYLOAD_SIZE])
         {
             return false;
         }
