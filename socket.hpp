@@ -59,6 +59,9 @@ public:
     void close();
 
     void setStatus(TCPStatusEnum status);
+    void setTimeout(uint32_t milliseconds);
+    void unsetTimeout();
+
     TCPStatusEnum getStatus();
 
     SegmentHandler *getSegmentHandler();

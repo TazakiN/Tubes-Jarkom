@@ -101,3 +101,30 @@ SegmentHandler *TCPSocket::getSegmentHandler()
 {
     return segmentHandler;
 }
+
+void TCPSocket::setTimeout(uint32_t milliseconds)
+{
+    struct timeval timeout;
+    timeout.tv_sec = milliseconds / 1000;
+    timeout.tv_usec = (milliseconds % 1000) * 1000;
+
+    if (setsockopt(this->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        std::cerr << "Error setting socket timeout: " << strerror(errno) << std::endl;
+    }
+}
+
+void TCPSocket::unsetTimeout()
+{
+    struct timeval timeout = {0, 0};
+
+    if (setsockopt(this->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        std::cerr << "Error unsetting receive timeout: " << strerror(errno) << std::endl;
+    }
+
+    if (setsockopt(this->socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        std::cerr << "Error unsetting send timeout: " << strerror(errno) << std::endl;
+    }
+}

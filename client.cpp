@@ -26,23 +26,23 @@ void Client::run()
     sendSYN();
 
     // Receive the SYN-ACK from the server
-    Segment synAckSeg;
-    struct sockaddr_in src_addr;
-    int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
-    server_addr = src_addr;
+    // Segment synAckSeg;
+    // struct sockaddr_in src_addr;
+    // int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
+    // server_addr = src_addr;
 
-    this->server_addr.sin_family = AF_INET;
-    this->server_addr.sin_port = htons(server_port);
-    this->server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+    // this->server_addr.sin_family = AF_INET;
+    // this->server_addr.sin_port = htons(server_port);
+    // this->server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
 
-    if (bytes_received > 0)
-    {
-        handleMessage(&synAckSeg, nullptr);
-    }
-    else
-    {
-        printColored("[!] [Handshake] Failed to receive SYN-ACK from server", Color::RED);
-    }
+    // if (bytes_received > 0)
+    // {
+    //     handleMessage(&synAckSeg, nullptr);
+    // }
+    // else
+    // {
+    //     printColored("[!] [Handshake] Failed to receive SYN-ACK from server", Color::RED);
+    // }
     while (true)
     {
         Segment receivedSegment;
@@ -151,12 +151,40 @@ void Client::sendSYN()
     servaddr.sin_port = htons(server_port);
     servaddr.sin_addr.s_addr = inet_addr(server_ip.c_str());
 
-    // Send the SYN segment to the server
-    printColored("[i] Trying to contact the server at port " + std::to_string(server_port), Color::BLUE);
-    connection->sendTo(&servaddr, &synSeg, sizeof(synSeg));
-    printColored("[+] [Handshake] [S=" + std::to_string(synSeg.seqNum) + "] Sent SYN to server", Color::GREEN);
+    int retries = 1000;
+    bool synAckReceived = false;
 
-    connection->setStatus(TCPStatusEnum::SYN_SENT);
+    for (int i = 0; i < retries && !synAckReceived; ++i)
+    {
+        printColored("[i] Sending SYN attempt " + std::to_string(i + 1) + " to server at port " + std::to_string(server_port), Color::BLUE);
+        printColored("[+] [Handshake] [S=" + std::to_string(synSeg.seqNum) + "] Sent SYN to server", Color::GREEN);
+        connection->sendTo(&servaddr, &synSeg, sizeof(synSeg));
+        connection->setStatus(TCPStatusEnum::SYN_SENT);
+
+        struct sockaddr_in src_addr;
+        Segment synAckSeg;
+        connection->setTimeout(5000);
+        int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
+        server_addr = src_addr;
+        server_ip = inet_ntoa(servaddr.sin_addr);
+        server_port = ntohs(server_addr.sin_port);
+
+        if (bytes_received > 0 && synAckSeg.flags == SYN_ACK_FLAG)
+        {
+            synAckReceived = true;
+            connection->unsetTimeout();
+            handleMessage(&synAckSeg, &src_addr);
+        }
+        else
+        {
+            printColored("[!] Timeout waiting for SYN-ACK, retrying...", Color::RED);
+        }
+    }
+
+    if (!synAckReceived)
+    {
+        printColored("[!] Failed to establish connection after " + std::to_string(retries) + " attempts", Color::RED);
+    }
 }
 
 void Client::handleFileData(Segment *segment)
@@ -169,8 +197,15 @@ void Client::handleFileData(Segment *segment)
 
     if (segment->seqNum <= LFR || segment->seqNum > LAF)
     {
-        printColored("[!] Out-of-window packet discarded: SeqNum=" + to_string(segment->seqNum), Color::RED);
-        return;
+        if (segment->seqNum <= LFR) {
+            Segment ackSeg = ack(LFR, LFR + MAX_PAYLOAD_SIZE);
+            // if (rand()%2 == 1) {
+            //     connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
+            // }
+            connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
+        } else {
+            printColored("[!] Out-of-window packet discarded: SeqNum=" + to_string(segment->seqNum), Color::RED);
+        }
     }
 
     if (!receivedData.empty() && segment->seqNum <= lastAckedSeqNum)

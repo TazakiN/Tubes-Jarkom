@@ -38,7 +38,8 @@ void Server::run()
         {
             if (receivedSegment.flags == SYN_FLAG)
             {
-                std::thread(&Server::handleMessage, this, &receivedSegment, &client_addr).detach();
+                // std::thread(&Server::handleMessage, this, &receivedSegment, &client_addr).detach();
+                handleMessage(&receivedSegment, &client_addr);
             }
             else
             {
@@ -101,7 +102,7 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
 
     if (segment->flags == SYN_FLAG)
     {
-        printColored("[+] [Handshake] [S=" + to_string(segment->seqNum) + "] Received SYN from " + client_ip + ":" + to_string(client_port), Color::GREEN);
+        printColored("[+] [Handshake] [S=" + std::to_string(segment->seqNum) + "] Received SYN from " + client_ip + ":" + std::to_string(client_port), Color::GREEN);
 
         srand(getpid());
         handshakeSeqNum = rand();
@@ -110,10 +111,36 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
         synAckSegment.ackNum = segment->seqNum + 1;
         initialSeqNum = segment->seqNum + 1;
 
-        connection->sendTo(client_addr, &synAckSegment, sizeof(synAckSegment));
+        int retries = 100;
+        bool ackReceived = false;
 
-        printColored("[+] [Handshake] [A=" + to_string(synAckSegment.ackNum) + "] [S=" + to_string(synAckSegment.seqNum) + "] Sent SYN-ACK to " + client_ip + ":" + to_string(client_port), Color::GREEN);
-        connection->setStatus(TCPStatusEnum::SYN_RECEIVED);
+        for (int i = 0; i < retries && !ackReceived; ++i)
+        {
+            connection->setStatus(TCPStatusEnum::SYN_RECEIVED);
+            printColored("[i] Sending SYN-ACK attempt " + std::to_string(i + 1) + " to client at " + client_ip + ":" + std::to_string(client_port), Color::BLUE);
+            printColored("[+] [Handshake] [A=" + to_string(synAckSegment.ackNum) + "] [S=" + to_string(synAckSegment.seqNum) + "] Sent SYN-ACK to " + client_ip + ":" + to_string(client_port), Color::GREEN);
+            connection->sendTo(client_addr, &synAckSegment, sizeof(synAckSegment));
+            connection->setTimeout(5000);
+
+            Segment ackSegment;
+            int32_t bytes_received = connection->recvFrom(&ackSegment, sizeof(ackSegment), client_addr);
+            if (bytes_received > 0 && ackSegment.flags == ACK_FLAG)
+            {
+                ackReceived = true;
+                connection->unsetTimeout();
+                handleMessage(&ackSegment, client_addr);
+            }
+            else
+            {
+                printColored("[!] Timeout waiting for ACK, retrying...", Color::RED);
+            }
+        }
+
+        if (!ackReceived)
+        {
+            printColored("[!] Failed to complete handshake after " + std::to_string(retries) + " attempts", Color::RED);
+            // Handle failure or reset state
+        }
     }
     else if (segment->flags == ACK_FLAG)
     {
@@ -319,6 +346,10 @@ void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_
                 auto it = timers.find(i);
                 if (it != timers.end())
                 {
+                    if (it->second.joinable())
+                    {
+                        it->second.join();
+                    }
                     timers.erase(it);
                 }
             }
