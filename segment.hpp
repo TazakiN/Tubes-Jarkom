@@ -2,6 +2,7 @@
 #define SEGMENT_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 const uint32_t MAX_PAYLOAD_SIZE = 1460;
 // const uint32_t MAX_PAYLOAD_SIZE = 100;

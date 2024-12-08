@@ -59,10 +59,10 @@ uint8_t *calculateChecksum(Segment segment)
 {
     segment.checksum = 0;
 
-    size_t headerSize = sizeof(Segment);
+    size_t headerSize = segment.payloadSize;
 
     uint16_t buffer[headerSize / 2 + (headerSize % 2)];
-    std::memcpy(buffer, &segment, headerSize);
+    std::memcpy(buffer, &segment.payload, headerSize);
 
     size_t length = headerSize / 2;
     uint32_t sum = 0;

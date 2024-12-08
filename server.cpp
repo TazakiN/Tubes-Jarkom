@@ -87,11 +87,11 @@ void Server::handleInputMethod(int mode, bool &retFlag)
 void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
 {
     Segment *segment = (Segment *)buffer;
-    // if (!isValidChecksum(*segment))
-    // {
-    //     printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
-    //     return;
-    // }
+    if (!isValidChecksum(*segment))
+    {
+        printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
+        return;
+    }
 
     string client_ip = inet_ntoa(client_addr->sin_addr);
     int client_port = ntohs(client_addr->sin_port);
@@ -103,7 +103,7 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
         srand(getpid());
         handshakeSeqNum = rand();
         Segment synAckSegment = synAck(handshakeSeqNum);
-        // synAckSegment = updateChecksum(synAckSegment);
+        synAckSegment = updateChecksum(synAckSegment);
         synAckSegment.ackNum = segment->seqNum + 1;
         initialSeqNum = segment->seqNum + 1;
 
@@ -246,7 +246,7 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     {
         // All data has been sent
         Segment finSegment = fin();
-        // finSegment = updateChecksum(finSegment);
+        finSegment = updateChecksum(finSegment);
         connection->sendTo(client_addr, &finSegment, sizeof(finSegment));
         printColored("[+] [Closing] Sending FIN request to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
         return;
@@ -256,7 +256,7 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     {
         if (segments[i].payloadSize > 0)
         {
-            // segments[i] = updateChecksum(segments[i]);
+            segments[i] = updateChecksum(segments[i]);
             connection->sendTo(client_addr, &segments[i], sizeof(Segment));
             // if (rand()%2 == 1) {
             //     connection->sendTo(client_addr, &segments[i], sizeof(Segment));
@@ -316,7 +316,7 @@ void Server::handleFINACK(Segment *segment, struct sockaddr_in *client_addr)
 {
     printColored("[+] [Closing] Received FIN-ACK from " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
     Segment ackSeg = ack(segment->ackNum, segment->seqNum + 1);
-    // ackSeg = updateChecksum(ackSeg);
+    ackSeg = updateChecksum(ackSeg);
     connection->sendTo(client_addr, &ackSeg, sizeof(ackSeg));
     printColored("[+] [Closing] Sending ACK request to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
     printColored("[i] Connection closed successfully", Color::BLUE);
