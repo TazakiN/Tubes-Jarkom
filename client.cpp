@@ -11,6 +11,7 @@ Client::Client(const std::string &ip, int port)
     this->self_port = port;
     connection = new TCPSocket(ip, port);
     connection->listen();
+    filenameReceived = false;
 
     received_seg = 0;
 }
@@ -196,10 +197,25 @@ void Client::handleFileData(Segment *segment)
         totalDataSize = offset + segment->payloadSize;
     }
 
-    // memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
-    receivedData.insert(receivedData.begin() + offset, segment->payload, segment->payload + segment->payloadSize);
+    // Validate filename in every segment
+    if (!filenameReceived && strlen(segment->filename) > 0)
+    {
+        filename = std::string(segment->filename);
+        filenameReceived = true;
+        printColored("[+] [Established] [Seg " + to_string(((segment->seqNum - initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) +
+                         "] [S=" + to_string(segment->seqNum) + "] Filename received: " + filename,
+                     Color::GREEN);
+    }
+    else if (filenameReceived && strcmp(segment->filename, filename.c_str()) != 0)
+    {
+        printColored("[!] Filename mismatch in segment", Color::RED);
+        return;
+    }
 
-    // Update LFR and LAF if all packets are contiguous
+    receivedData.insert(receivedData.begin() + offset,
+                        segment->payload,
+                        segment->payload + segment->payloadSize);
+
     if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum))
     {
         LFR = segment->seqNum;
@@ -222,7 +238,7 @@ void Client::handleFileTransferFin()
 {
     printColored("[+] [Closing] Received FIN request from " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
 
-    string outputPath = "output/received_file.txt";
+    string outputPath = "output/" + string(filename);
     std::ofstream outFile(outputPath, std::ios::binary);
     if (!outFile)
     {

@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-// const uint32_t MAX_PAYLOAD_SIZE = 1460;
-const uint32_t MAX_PAYLOAD_SIZE = 100;
+const uint32_t MAX_PAYLOAD_SIZE = 1460;
+// const uint32_t MAX_PAYLOAD_SIZE = 100;
 const uint8_t DEFAULT_WINDOW_SIZE = 4;
 struct Segment
 {
@@ -37,7 +37,9 @@ struct Segment
     uint16_t checksum : 16;
     uint16_t urgentPointer : 16;
 
-    // options keknya gausah
+    // options
+    char filename[255];
+
     uint16_t payloadSize : 16;
     uint8_t payload[MAX_PAYLOAD_SIZE];
 } __attribute__((packed));

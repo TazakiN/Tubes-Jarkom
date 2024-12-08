@@ -29,6 +29,9 @@ private:
 
     int received_seg;
 
+    std::string filename;
+    bool filenameReceived;
+
     void handleFileTransferFin();
     void sendFileACK(Segment *segment);
     bool isContiguous(uint32_t start, uint32_t end);

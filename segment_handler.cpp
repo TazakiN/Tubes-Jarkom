@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include "utils.hpp"
 #include <string.h>
+#include <string>
 
 // Constructor
 SegmentHandler::SegmentHandler() : windowSize(DEFAULT_WINDOW_SIZE),
@@ -11,7 +12,8 @@ SegmentHandler::SegmentHandler() : windowSize(DEFAULT_WINDOW_SIZE),
                                    dataStream(nullptr),
                                    dataSize(0),
                                    dataIndex(0),
-                                   segmentBuffer(nullptr)
+                                   segmentBuffer(nullptr),
+                                   filename()
 {
 }
 
@@ -30,9 +32,15 @@ void SegmentHandler::cleanup()
 
     if (dataStream != nullptr)
     {
-        delete[] static_cast<uint8_t*>(dataStream);
+        delete[] static_cast<uint8_t *>(dataStream);
         dataStream = nullptr;
     }
+}
+
+void SegmentHandler::setFileName(const char *newFilename)
+{
+    strncpy(filename, newFilename, MAX_FILENAME_SIZE - 1);
+    filename[MAX_FILENAME_SIZE - 1] = '\0';
 }
 
 void SegmentHandler::initializeBuffer()
@@ -72,7 +80,7 @@ void SegmentHandler::generateSegments()
 
     uint32_t remainingData = dataSize - dataIndex;
     uint8_t segmentsToGenerate = std::min(windowSize,
-        static_cast<uint8_t>((remainingData + MAX_PAYLOAD_SIZE - 1) / MAX_PAYLOAD_SIZE));
+                                          static_cast<uint8_t>((remainingData + MAX_PAYLOAD_SIZE - 1) / MAX_PAYLOAD_SIZE));
 
     for (uint8_t i = 0; i < segmentsToGenerate; i++)
     {
@@ -82,6 +90,8 @@ void SegmentHandler::generateSegments()
         segmentBuffer[i] = createDataSegment(
             static_cast<uint8_t *>(dataStream) + currentOffset,
             currentSize);
+        strncpy(segmentBuffer[i].filename, filename, MAX_FILENAME_SIZE - 1);
+        segmentBuffer[i].filename[MAX_FILENAME_SIZE - 1] = '\0';
         currentSeqNum += currentSize;
     }
 
@@ -127,12 +137,12 @@ Segment *SegmentHandler::advanceWindow(uint8_t size)
         dataIndex = dataSize;
     }
 
-   if (dataIndex >= dataSize)
+    if (dataIndex >= dataSize)
     {
         return nullptr;
     }
 
-    setCurrentNumbers(currentAckNum + size*MAX_PAYLOAD_SIZE, currentAckNum + size*MAX_PAYLOAD_SIZE);
+    setCurrentNumbers(currentAckNum + size * MAX_PAYLOAD_SIZE, currentAckNum + size * MAX_PAYLOAD_SIZE);
 
     // Generate new segments for the window
     generateSegments();
