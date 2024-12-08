@@ -137,39 +137,6 @@ void Client::sendSYN()
     connection->setStatus(TCPStatusEnum::SYN_SENT);
 }
 
-// void Client::handleFileData(Segment *segment)
-// {
-//     if (!receivedData.empty() && segment->seqNum <= lastAckedSeqNum)
-//     {
-//         // Duplicate segment, ignore
-//         return;
-//     }
-
-//     uint32_t offset = segment->seqNum - initialSeqNum;
-
-//     if (receivedData.size() < offset + segment->payloadSize)
-//     {
-//         receivedData.resize(offset + segment->payloadSize);
-//     }
-
-//     memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
-
-//     if (offset + segment->payloadSize > totalDataSize)
-//     {
-//         totalDataSize = offset + segment->payloadSize;
-//     }
-
-//     received_seg++;
-//     printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [S=" + to_string(segment->seqNum) + "] ACKed", Color::GREEN);
-//     // Send ACK
-//     Segment ackSegment = ack(segment->seqNum + segment->payloadSize, segment->seqNum + 1);
-
-//     connection->send(server_ip, server_port, &ackSegment, sizeof(ackSegment));
-
-//     lastAckedSeqNum = segment->seqNum;
-//     printColored("[+] [Established] [Seg " + to_string(received_seg) + "] [A=" + to_string(ackSegment.ackNum) + "] Sent ACK", Color::GREEN);
-// }
-
 void Client::handleFileData(Segment *segment)
 {
     if (segment->seqNum <= LFR || segment->seqNum > LAF)
@@ -186,18 +153,13 @@ void Client::handleFileData(Segment *segment)
 
     uint32_t offset = segment->seqNum - initialSeqNum;
 
-    if (receivedData.size() < offset + segment->payloadSize)
-    {
-        receivedData.resize(offset + segment->payloadSize);
-    }
-
     if (offset + segment->payloadSize > totalDataSize)
     {
         totalDataSize = offset + segment->payloadSize;
     }
 
-    // memcpy(&receivedData[offset], segment->payload, segment->payloadSize);
     receivedData.insert(receivedData.begin() + offset, segment->payload, segment->payload + segment->payloadSize);
+    receivedIndex.insert(receivedIndex.begin() + (offset/MAX_PAYLOAD_SIZE), 1);
 
     // Update LFR and LAF if all packets are contiguous
     if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum))
@@ -246,7 +208,7 @@ bool Client::isContiguous(uint32_t start, uint32_t end)
     for (uint32_t seq = start; seq <= end; seq += MAX_PAYLOAD_SIZE)
     {
         uint32_t offset = seq - initialSeqNum;
-        if (!receivedData[offset])
+        if (!receivedIndex[offset/MAX_PAYLOAD_SIZE])
         {
             return false;
         }

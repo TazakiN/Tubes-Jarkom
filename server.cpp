@@ -285,7 +285,7 @@ void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_
         printColored("[+] ACK received for packet with sequence number: " + std::to_string(LAR), Color::GREEN);
         {
             std::lock_guard<std::mutex> lock(timerMutex);
-            for (int i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){
+            for (u_int32_t i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){
                 auto it = timers.find(i);
                 if (it != timers.end()) {
                     timers.erase(it);

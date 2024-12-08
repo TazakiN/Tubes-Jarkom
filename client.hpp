@@ -22,6 +22,7 @@ private:
     void sendACK(Segment *segment);
 
     std::vector<uint8_t> receivedData;
+    std::vector<uint8_t> receivedIndex;
     uint32_t initialSeqNum;
     uint32_t lastAckedSeqNum;
 
