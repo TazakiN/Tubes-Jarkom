@@ -57,11 +57,11 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
 {
     Segment *segment = (Segment *)buffer;
 
-    if (!isValidChecksum(*segment))
-    {
-        printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
-        return;
-    }
+    // if (!isValidChecksum(*segment))
+    // {
+    //     printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
+    //     return;
+    // }
 
     if (segment->flags == SYN_ACK_FLAG)
     {
@@ -136,6 +136,7 @@ void Client::sendSYN()
     srand(getpid());
     initialSeqNum = rand();
     Segment synSeg = syn(initialSeqNum);
+    // synSeg = updateChecksum(synSeg);
 
     // Send the SYN segment to the server
     printColored("[i] Trying to contact the sender at " + server_ip + ":" + std::to_string(server_port), Color::BLUE);
@@ -180,11 +181,11 @@ void Client::sendSYN()
 
 void Client::handleFileData(Segment *segment)
 {
-    if (!isValidChecksum(*segment))
-    {
-        printColored("[!] Invalid checksum in data segment, discarding", Color::RED);
-        return;
-    }
+    // if (!isValidChecksum(*segment))
+    // {
+    //     printColored("[!] Invalid checksum in data segment, discarding", Color::RED);
+    //     return;
+    // }
 
     if (segment->seqNum <= LFR || segment->seqNum > LAF)
     {
