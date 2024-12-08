@@ -322,10 +322,10 @@ void Server::startTimer(Segment segment, struct sockaddr_in *client_addr)
 
         if (timers.find(segment.seqNum) != timers.end()) {
             printColored("[!] [Timeout] [Seg " + std::to_string(((segment.seqNum-initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segment.seqNum) + "]. Retransmitting...", Color::RED);
-            // connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
-            if (rand()%2 == 1) {
-                connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
-            }
+            connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
+            // if (rand()%2 == 1) {
+            //     connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
+            // }
             timers.erase(segment.seqNum);
             startTimer(segment, client_addr);
         } });
