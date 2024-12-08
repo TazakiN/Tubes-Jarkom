@@ -4,17 +4,15 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <fstream>
+#include <arpa/inet.h>
 
 Client::Client(const std::string &ip, int port)
 {
     this->self_ip = ip;
     this->self_port = port;
+    this->server_port = port; // Initialize server_port
     connection = new TCPSocket(ip, port);
     filenameReceived = false;
-
-    this->server_addr.sin_family = AF_INET;
-    this->server_addr.sin_port = htons(server_port);
-    this->server_addr.sin_addr.s_addr = INADDR_ANY;
 
     received_seg = 0;
 }
@@ -32,6 +30,13 @@ void Client::run()
     struct sockaddr_in src_addr;
     int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
     server_addr = src_addr;
+
+    this->server_addr.sin_family = AF_INET;
+    this->server_addr.sin_port = htons(server_port);
+    this->server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+
+    inet_ntop(AF_INET, &(server_addr.sin_addr), &server_ip[0], INET_ADDRSTRLEN);
+    printColored("[i] Server address: " + server_ip + ":" + std::to_string(ntohs(server_addr.sin_port)), Color::BLUE);
 
     if (bytes_received > 0)
     {
@@ -126,6 +131,11 @@ void Client::sendACK(Segment *segment)
 
 void Client::getServerInfo()
 {
+    printColored("[?] Please enter the server ip: ", Color::YELLOW, false);
+    string ip;
+    std::cin >> ip;
+    this->server_ip = ip;
+
     printColored("[?] Please enter the server port: ", Color::YELLOW, false);
     int port;
     std::cin >> port;
@@ -142,7 +152,7 @@ void Client::sendSYN()
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(server_port);
-    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_addr.s_addr = inet_addr("172.23.146.131");
 
     // Send the SYN segment to the server
     printColored("[i] Trying to contact the server at port " + std::to_string(server_port), Color::BLUE);

@@ -9,6 +9,10 @@
 Server::Server(const string &ip, int port) : SWS(4), LAR(0), LFS(0)
 {
     connection = new TCPSocket(ip, port);
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port);
+    server_addr.sin_addr.s_addr = inet_addr(ip.c_str());
 }
 
 void Server::run()
