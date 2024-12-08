@@ -13,7 +13,7 @@ Client::Client(const std::string &ip, int port)
     this->server_port = port; // Initialize server_port
     connection = new TCPSocket(ip, port);
     filenameReceived = false;
-
+    CRC = 0;
     received_seg = 0;
 }
 
@@ -65,9 +65,21 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
 {
     Segment *segment = (Segment *)buffer;
 
-    if (!isValidChecksum(*segment))
+    //Mengenalkan client mengenai tipe eror detection yang sedang dipakai
+    if(segment->CRC == 1){
+        CRC = 1;
+    }
+
+    // Apabila metode error detectionnya checksum (default)
+    if ((segment->CRC == 0) && (!isValidChecksum(*segment)))
     {
-        printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
+        printColored("[!HANDLE MESSAGE] Invalid checksum detected, discarding segment", Color::RED);
+        return;
+    }
+    // Apabila metode error detectionnya CRC
+    else if ((segment->CRC == 1) && (verifyCRC16(*segment)))
+    {
+        printColored("[!] Invalid CRC16 detected, discarding segment", Color::RED);
         return;
     }
 
@@ -189,9 +201,16 @@ void Client::sendSYN()
 
 void Client::handleFileData(Segment *segment)
 {
-    if (!isValidChecksum(*segment))
+    // Apabila metode error detectionnya checksum (default)
+    if ((segment->CRC == 0) && (!isValidChecksum(*segment)))
     {
-        printColored("[!] Invalid checksum in data segment, discarding", Color::RED);
+        printColored("[!HANDLE FILE DATA] Invalid checksum in data segment, discarding", Color::RED);
+        return;
+    }
+    // Apabila metode error detectionnya CRC
+    else if ((segment->CRC == 1) && (verifyCRC16(*segment)))
+    {
+        printColored("[!] Invalid CRC16 in data segment, discarding", Color::RED);
         return;
     }
 
@@ -273,11 +292,14 @@ void Client::handleFileTransferFin()
         return;
     }
 
-    outFile.write(reinterpret_cast<const char *>(receivedData.data()), totalDataSize);
-    outFile.close();
 
+    std::cout << std::endl;
+    outFile.write(reinterpret_cast<const char *>(receivedData.data()), receivedData.size() - 4);
+    outFile.close();
+    
     printColored("[i] File received, saved " + std::to_string(totalDataSize) + " bytes to: " + outputPath, Color::BLUE);
     connection->setStatus(TCPStatusEnum::FIN_WAIT_1);
+
     // Send FIN-ACK
     Segment finAckSegment = finAck();
     connection->sendTo(&server_addr, &finAckSegment, sizeof(finAckSegment));

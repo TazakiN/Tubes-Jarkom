@@ -53,7 +53,7 @@ void SegmentHandler::initializeBuffer()
     segmentBuffer = new Segment[windowSize];
 }
 
-Segment SegmentHandler::createDataSegment(const uint8_t *data, uint32_t size)
+Segment SegmentHandler::createDataSegment(const uint8_t *data, uint32_t size, unsigned int CRC)
 {
     Segment segment = createSegment();
 
@@ -61,15 +61,25 @@ Segment SegmentHandler::createDataSegment(const uint8_t *data, uint32_t size)
     segment.ackNum = currentAckNum;
     segment.flags = 0;
 
+    if(CRC == 1){
+        segment.CRC = 1;
+    }
+
     // Set payload
     memset(segment.payload, 0, MAX_PAYLOAD_SIZE);
     std::memcpy(segment.payload, data, size);
     segment.payloadSize = size;
 
-    return updateChecksum(segment);
+    if(segment.CRC == 0){
+        return updateChecksum(segment);
+    }
+    else
+    {
+        return appendCRC16(segment);
+    }
 }
 
-void SegmentHandler::generateSegments()
+void SegmentHandler::generateSegments(unsigned int CRC)
 {
     if (dataStream == nullptr || dataSize == 0)
     {
@@ -89,7 +99,7 @@ void SegmentHandler::generateSegments()
 
         segmentBuffer[i] = createDataSegment(
             static_cast<uint8_t *>(dataStream) + currentOffset,
-            currentSize);
+            currentSize, CRC);
         strncpy(segmentBuffer[i].filename, filename, MAX_FILENAME_SIZE - 1);
         segmentBuffer[i].filename[MAX_FILENAME_SIZE - 1] = '\0';
         currentSeqNum += currentSize;
@@ -123,7 +133,7 @@ uint8_t SegmentHandler::getWindowSize()
     return windowSize;
 }
 
-Segment *SegmentHandler::advanceWindow(uint8_t size)
+Segment *SegmentHandler::advanceWindow(uint8_t size, unsigned int CRC)
 {
     if (size > windowSize)
     {
@@ -145,7 +155,7 @@ Segment *SegmentHandler::advanceWindow(uint8_t size)
     setCurrentNumbers(currentAckNum + size * MAX_PAYLOAD_SIZE, currentAckNum + size * MAX_PAYLOAD_SIZE);
 
     // Generate new segments for the window
-    generateSegments();
+    generateSegments(CRC);
 
     Segment *currentWindow = new Segment[DEFAULT_WINDOW_SIZE];
     for (uint8_t i = 0; i < DEFAULT_WINDOW_SIZE; i++)

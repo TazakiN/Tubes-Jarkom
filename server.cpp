@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <thread>
+#include "segment.hpp"
 
 Server::Server(const string &ip, int port) : SWS(4), LAR(0), LFS(0)
 {
@@ -91,9 +92,17 @@ void Server::handleInputMethod(int mode, bool &retFlag)
 void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
 {
     Segment *segment = (Segment *)buffer;
-    if (!isValidChecksum(*segment))
+
+    // Apabila metode error detectionnya checksum (default)
+    if ((segment->CRC == 0) && (!isValidChecksum(*segment)))
     {
         printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
+        return;
+    }
+    // Apabila metode error detectionnya CRC
+    else if ((segment->CRC == 1) && (verifyCRC16(*segment)))
+    {
+        printColored("[!] Invalid CRC16 detected, discarding segment", Color::RED);
         return;
     }
 
@@ -156,7 +165,7 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
                 LAR = initialSeqNum - MAX_PAYLOAD_SIZE;
                 LFS = LAR + SWS;
 
-                initTransfer(segment, client_addr);
+                initTransfer(segment, client_addr, CRC);
             }
             else
             {
@@ -180,6 +189,22 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
 
 int Server::inputMethodMenu()
 {
+
+    
+    printColored("[?] Please choose the error detection method:", Color::YELLOW);
+    printColored("[?] 1. Checksum", Color::YELLOW);
+    printColored("[?] 2. CRC", Color::YELLOW);
+    printColored("[?] Enter your choice: ", Color::YELLOW, false);
+    int error_method;
+    cin >> error_method;
+    cin.ignore();
+    if(error_method == 1){
+        CRC = 0;
+    }
+    else if(error_method == 2){
+        CRC = 1;
+    }
+
     printColored("[?] Please choose the sending mode:", Color::YELLOW);
     printColored("[?] 1. User Input", Color::YELLOW);
     printColored("[?] 2. File Input", Color::YELLOW);
@@ -226,7 +251,7 @@ string Server::saveToFile(const string &data)
     return fileName;
 }
 
-void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
+void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr, unsigned int CRC)
 {
     // Read file content
     std::ifstream file(filePath, std::ios::binary);
@@ -254,18 +279,17 @@ void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
 
     printColored("[+] Sending input to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
 
-    sendNextWindow(client_addr);
+    sendNextWindow(client_addr, CRC);
 
     delete[] fileData;
 }
 
-void Server::sendNextWindow(struct sockaddr_in *client_addr)
+void Server::sendNextWindow(struct sockaddr_in *client_addr, unsigned int CRC)
 {
     SegmentHandler *segmentHandler = connection->getSegmentHandler();
     uint8_t windowSize = segmentHandler->getWindowSize();
     int adv_size = (SWS - (LFS - LAR)) / MAX_PAYLOAD_SIZE;
-
-    Segment *segments = segmentHandler->advanceWindow(adv_size);
+    Segment *segments = segmentHandler->advanceWindow(adv_size, CRC);
     LFS = LAR + SWS;
 
     if (adv_size == 0)
@@ -298,7 +322,14 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     {
         if (segments[i].payloadSize > 0)
         {
-            segments[i] = updateChecksum(segments[i]);
+            if(CRC == 0){
+                segments->CRC = 0;
+                segments[i] = updateChecksum(segments[i]);
+            }
+            else if(CRC == 1){
+                segments->CRC = 1;
+                segments[i] = appendCRC16(segments[i]);
+            }
             connection->sendTo(client_addr, &segments[i], sizeof(Segment));
             // if (rand()%2 == 1) {
             //     connection->sendTo(client_addr, &segments[i], sizeof(Segment));
@@ -355,7 +386,7 @@ void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_
             }
         }
         LAR = segment->ackNum - MAX_PAYLOAD_SIZE;
-        sendNextWindow(client_addr);
+        sendNextWindow(client_addr, CRC);
     }
 }
 
