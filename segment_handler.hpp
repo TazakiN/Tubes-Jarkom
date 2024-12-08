@@ -3,6 +3,8 @@
 
 #include "segment.hpp"
 
+const int MAX_FILENAME_SIZE = 255;
+
 class SegmentHandler
 {
 private:
@@ -13,6 +15,7 @@ private:
     uint32_t dataSize;
     uint32_t dataIndex;
     Segment *segmentBuffer; // or use std vector if you like
+    char filename[MAX_FILENAME_SIZE];
 
     void cleanup();
 
@@ -26,6 +29,7 @@ public:
     SegmentHandler();
     ~SegmentHandler();
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
+    void setFileName(const char *newFilename);
     void setCurrentNumbers(uint32_t seqNum, uint32_t ackNum);
     uint8_t getWindowSize();
     Segment *advanceWindow(uint8_t size);

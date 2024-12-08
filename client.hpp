@@ -22,12 +22,16 @@ private:
     void sendACK(Segment *segment);
 
     std::vector<uint8_t> receivedData;
+    std::vector<uint8_t> receivedIndex;
     uint32_t initialSeqNum;
     uint32_t lastAckedSeqNum;
 
     size_t totalDataSize;
 
     int received_seg;
+
+    std::string filename;
+    bool filenameReceived;
 
     void handleFileTransferFin();
     void sendFileACK(Segment *segment);

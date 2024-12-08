@@ -87,6 +87,11 @@ void Server::handleInputMethod(int mode, bool &retFlag)
 void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
 {
     Segment *segment = (Segment *)buffer;
+    // if (!isValidChecksum(*segment))
+    // {
+    //     printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
+    //     return;
+    // }
 
     string client_ip = inet_ntoa(client_addr->sin_addr);
     int client_port = ntohs(client_addr->sin_port);
@@ -98,6 +103,7 @@ void Server::handleMessage(void *buffer, struct sockaddr_in *client_addr)
         srand(getpid());
         handshakeSeqNum = rand();
         Segment synAckSegment = synAck(handshakeSeqNum);
+        // synAckSegment = updateChecksum(synAckSegment);
         synAckSegment.ackNum = segment->seqNum + 1;
         initialSeqNum = segment->seqNum + 1;
 
@@ -200,6 +206,9 @@ void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
         return;
     }
 
+    // get the filename and ext
+    string filename = filePath.substr(filePath.find_last_of("/\\") + 1);
+
     file.seekg(0, std::ios::end);
     uint32_t fileSize = file.tellg();
     file.seekg(0, std::ios::beg);
@@ -211,6 +220,7 @@ void Server::initTransfer(Segment *segment, struct sockaddr_in *client_addr)
     SegmentHandler *segmentHandler = connection->getSegmentHandler();
     segmentHandler->setDataStream(fileData, fileSize);
     segmentHandler->setCurrentNumbers(initialSeqNum, initialSeqNum);
+    segmentHandler->setFileName(filename.c_str());
 
     printColored("[+] Sending input to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
 
@@ -236,6 +246,7 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     {
         // All data has been sent
         Segment finSegment = fin();
+        // finSegment = updateChecksum(finSegment);
         connection->sendTo(client_addr, &finSegment, sizeof(finSegment));
         printColored("[+] [Closing] Sending FIN request to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
         return;
@@ -245,11 +256,12 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     {
         if (segments[i].payloadSize > 0)
         {
+            // segments[i] = updateChecksum(segments[i]);
             connection->sendTo(client_addr, &segments[i], sizeof(Segment));
             // if (rand()%2 == 1) {
             //     connection->sendTo(client_addr, &segments[i], sizeof(Segment));
             // }
-            printColored("[+] [Established] [Seg " + to_string(((segments[i].seqNum-initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segments[i].seqNum) + "] Sent", Color::GREEN);
+            printColored("[+] [Established] [Seg " + to_string(((segments[i].seqNum - initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segments[i].seqNum) + "] Sent", Color::GREEN);
 
             startTimer(segments[i], client_addr);
         }
@@ -257,9 +269,11 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     printColored("[~] [Established] Waiting for segments to be ACKed", Color::YELLOW);
 }
 
-void Server::startTimer(Segment segment, struct sockaddr_in *client_addr) {
+void Server::startTimer(Segment segment, struct sockaddr_in *client_addr)
+{
 
-    timers[segment.seqNum] = std::thread([this, segment, client_addr]() {
+    timers[segment.seqNum] = std::thread([this, segment, client_addr]()
+                                         {
         std::this_thread::sleep_for(std::chrono::milliseconds(TIMEOUT_INTERVAL));
 
         std::lock_guard<std::mutex> lock(timerMutex);
@@ -272,22 +286,23 @@ void Server::startTimer(Segment segment, struct sockaddr_in *client_addr) {
             // }
             timers.erase(segment.seqNum);
             startTimer(segment, client_addr);
-        }
-    });
+        } });
 
     timers[segment.seqNum].detach();
 }
 
-
 // sliding window
-void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_addr) {
-    if (segment->ackNum-MAX_PAYLOAD_SIZE > LAR) {
+void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_addr)
+{
+    if (segment->ackNum - MAX_PAYLOAD_SIZE > LAR)
+    {
         printColored("[+] ACK received for packet with sequence number: " + std::to_string(LAR), Color::GREEN);
         {
             std::lock_guard<std::mutex> lock(timerMutex);
-            for (int i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){
+            for (u_int32_t i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){
                 auto it = timers.find(i);
-                if (it != timers.end()) {
+                if (it != timers.end())
+                {
                     timers.erase(it);
                 }
             }
@@ -301,6 +316,7 @@ void Server::handleFINACK(Segment *segment, struct sockaddr_in *client_addr)
 {
     printColored("[+] [Closing] Received FIN-ACK from " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
     Segment ackSeg = ack(segment->ackNum, segment->seqNum + 1);
+    // ackSeg = updateChecksum(ackSeg);
     connection->sendTo(client_addr, &ackSeg, sizeof(ackSeg));
     printColored("[+] [Closing] Sending ACK request to " + (string)inet_ntoa(client_addr->sin_addr) + ":" + to_string(ntohs(client_addr->sin_port)), Color::GREEN);
     printColored("[i] Connection closed successfully", Color::BLUE);
