@@ -43,6 +43,9 @@ private:
     uint32_t LAF;
     uint32_t SeqNumACK;
     std::unordered_map<uint32_t, Segment> buffer;
+    
+    //CRC
+    unsigned int CRC: 1;
 
 public:
     Client(const std::string &ip, int port);

@@ -102,4 +102,5 @@ Segment appendCRC16(Segment segment);
 
 bool verifyCRC16(Segment segment);
 
+
 #endif

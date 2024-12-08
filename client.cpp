@@ -12,7 +12,7 @@ Client::Client(const std::string &ip, int port)
     connection = new TCPSocket(ip, port);
     connection->listen();
     filenameReceived = false;
-
+    CRC = 0;
     received_seg = 0;
 }
 
@@ -57,10 +57,14 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
 {
     Segment *segment = (Segment *)buffer;
 
+    //Mengenalkan client mengenai tipe eror detection yang sedang dipakai
+    if(segment->CRC == 1){
+        CRC = 1;
+    }
+
     // Apabila metode error detectionnya checksum (default)
     if ((segment->CRC == 0) && (!isValidChecksum(*segment)))
     {
-        
         printColored("[!HANDLE MESSAGE] Invalid checksum detected, discarding segment", Color::RED);
         return;
     }
@@ -241,18 +245,13 @@ void Client::handleFileTransferFin()
     }
 
 
-    //Dhidittest
-    std::cout<<"Dhidit testing bos"<< std::endl;
-    for (size_t i = 0; i < receivedData.size(); ++i) {
-        std::cout << static_cast<char>(receivedData[i]);
-    }
-
     std::cout << std::endl;
-    outFile.write(reinterpret_cast<const char *>(receivedData.data()), receivedData.size());
+    outFile.write(reinterpret_cast<const char *>(receivedData.data()), receivedData.size() - 4);
     outFile.close();
-
+    
     printColored("[i] File received, saved " + std::to_string(totalDataSize) + " bytes to: " + outputPath, Color::BLUE);
     connection->setStatus(TCPStatusEnum::FIN_WAIT_1);
+
     // Send FIN-ACK
     Segment finAckSegment = finAck();
     connection->send(server_ip, server_port, &finAckSegment, sizeof(finAckSegment));
