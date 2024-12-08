@@ -261,10 +261,12 @@ void Client::handleFileData(Segment *segment)
         return;
     }
 
-    receivedData.resize(std::max(receivedData.size(), static_cast<size_t>(totalDataSize)));
-    receivedData.insert(receivedData.begin() + offset,
-                        segment->payload,
-                        segment->payload + segment->payloadSize);
+    // Pastikan ukuran receivedData cukup besar
+    receivedData.resize(std::max(receivedData.size(), static_cast<size_t>(offset + segment->payloadSize)));
+
+    // Salin data langsung ke posisi yang tepat tanpa menggeser data lain
+    std::copy(segment->payload, segment->payload + segment->payloadSize, receivedData.begin() + offset);
+
     receivedIndex.resize(std::max(receivedIndex.size(), static_cast<size_t>(offset / MAX_PAYLOAD_SIZE) + 1));
     receivedIndex.insert(receivedIndex.begin() + (offset / MAX_PAYLOAD_SIZE), 1);
 
@@ -299,7 +301,8 @@ void Client::handleFileTransferFin()
     }
 
     std::cout << std::endl;
-    outFile.write(reinterpret_cast<const char *>(receivedData.data()), receivedData.size() - 4);
+    // Fix: Write only the actual data size received
+    outFile.write(reinterpret_cast<const char *>(receivedData.data()), totalDataSize);
     outFile.close();
 
     printColored("[i] File received, saved " + std::to_string(totalDataSize) + " bytes to: " + outputPath, Color::BLUE);
