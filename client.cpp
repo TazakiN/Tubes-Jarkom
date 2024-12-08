@@ -15,6 +15,8 @@ Client::Client(const std::string &ip, int port)
     filenameReceived = false;
     CRC = 0;
     received_seg = 0;
+
+    connection->listen();
 }
 
 void Client::run()
@@ -65,8 +67,9 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
 {
     Segment *segment = (Segment *)buffer;
 
-    //Mengenalkan client mengenai tipe eror detection yang sedang dipakai
-    if(segment->CRC == 1){
+    // Mengenalkan client mengenai tipe eror detection yang sedang dipakai
+    if (segment->CRC == 1)
+    {
         CRC = 1;
     }
 
@@ -177,12 +180,12 @@ void Client::sendSYN()
         Segment synAckSeg;
         connection->setTimeout(5000);
         int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
-        server_addr = src_addr;
-        server_ip = inet_ntoa(servaddr.sin_addr);
-        server_port = ntohs(server_addr.sin_port);
 
         if (bytes_received > 0 && synAckSeg.flags == SYN_ACK_FLAG)
         {
+            server_addr = src_addr;
+            server_ip = inet_ntoa(servaddr.sin_addr);
+            server_port = ntohs(server_addr.sin_port);
             synAckReceived = true;
             connection->unsetTimeout();
             handleMessage(&synAckSeg, &src_addr);
@@ -216,13 +219,16 @@ void Client::handleFileData(Segment *segment)
 
     if (segment->seqNum <= LFR || segment->seqNum > LAF)
     {
-        if (segment->seqNum <= LFR) {
+        if (segment->seqNum <= LFR)
+        {
             Segment ackSeg = ack(LFR, LFR + MAX_PAYLOAD_SIZE);
             // if (rand()%2 == 1) {
             //     connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
             // }
             connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
-        } else {
+        }
+        else
+        {
             printColored("[!] Out-of-window packet discarded: SeqNum=" + to_string(segment->seqNum), Color::RED);
         }
     }
@@ -292,11 +298,10 @@ void Client::handleFileTransferFin()
         return;
     }
 
-
     std::cout << std::endl;
     outFile.write(reinterpret_cast<const char *>(receivedData.data()), receivedData.size() - 4);
     outFile.close();
-    
+
     printColored("[i] File received, saved " + std::to_string(totalDataSize) + " bytes to: " + outputPath, Color::BLUE);
     connection->setStatus(TCPStatusEnum::FIN_WAIT_1);
 
