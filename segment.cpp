@@ -1,6 +1,9 @@
 #include "segment.hpp"
 #include <cstring>
+#include "utils.hpp"
 #include <netinet/in.h>
+#include <iostream>
+#include <ostream>
 #define CRC16_POLY 0x8005   // CRC-16: 1 + x² + x¹⁵ + x¹⁶
 #define CRC16_INITIAL 0xFFFF // Inisialisasi nilai CRC
 
@@ -13,6 +16,9 @@ Segment createSegment()
     seg.urgentPointer = 0;
     seg.payloadSize = 0;
     memset(seg.payload, 0, MAX_PAYLOAD_SIZE);
+
+    //Default
+    seg.CRC = 0;
     return seg;
 }
 
@@ -92,51 +98,55 @@ uint8_t *calculateChecksum(Segment segment)
     return result;
 }
 
-Segment updateChecksum(Segment segment)
-{
+Segment updateChecksum(Segment segment) {
     uint8_t *checksumBytes = calculateChecksum(segment);
     segment.checksum = (checksumBytes[0] << 8) | checksumBytes[1];
+    printColored("Call Update Checksum", Color::RED);
+    printColored(std::to_string(segment.checksum), Color::RED);
     delete[] checksumBytes;
     return segment;
 }
 
-bool isValidChecksum(Segment segment)
-{
+bool isValidChecksum(Segment segment) {
     uint16_t originalChecksum = segment.checksum;
     uint8_t *calculatedChecksum = calculateChecksum(segment);
     uint16_t calculated = (calculatedChecksum[0] << 8) | calculatedChecksum[1];
     delete[] calculatedChecksum;
 
+    printColored(std::to_string(originalChecksum), Color::RED);
+    printColored(std::to_string(calculated), Color::RED);
     return originalChecksum == calculated;
 }
-
-uint16_t calculateCRC16(const uint8_t *data, size_t length) {
+uint16_t calculateCRC16(Segment segment) {
     uint16_t crc = CRC16_INITIAL;
+    size_t segmentSize = sizeof(Segment) - MAX_PAYLOAD_SIZE + segment.payloadSize;
+    uint8_t *buffer = new uint8_t[segmentSize];
+    std::memcpy(buffer, &segment, segmentSize);
 
-    for (size_t i = 0; i < length; i++) {
-        crc ^= (data[i] << 8); //Data digeser 8 abistu diXOR
-
+    for (size_t i = 0; i < segmentSize; ++i) {
+        crc ^= (buffer[i] << 8);
         for (int j = 0; j < 8; ++j) {
             if (crc & 0x8000) {
-                crc = (crc << 1) ^ CRC16_POLY; // Kalau bit paling kiri nol, harus di shift dan XOR
+                crc = (crc << 1) ^ CRC16_POLY;
             } else {
-                crc <<= 1; //Shift aja
+                crc <<= 1;
             }
         }
     }
 
+    delete[] buffer;
     return crc;
 }
 
-
-void appendCRC16(uint8_t *data, size_t length) {
-    uint16_t crc = calculateCRC16(data, length);
-    data[length] = (crc >> 8) & 0xFF; 
-    data[length + 1] = crc & 0xFF;   
+Segment appendCRC16(Segment segment) {
+    uint16_t crc = calculateCRC16(segment);
+    segment.payload[segment.payloadSize] = (crc >> 8) & 0xFF;
+    segment.payload[segment.payloadSize + 1] = crc & 0xFF;
+    segment.payloadSize += 2;
+    return segment;
 }
 
-
-bool verifyCRC16(const uint8_t *data, size_t length) {
-    uint16_t crc = calculateCRC16(data, length);
-    return crc == 0; 
+bool verifyCRC16(Segment segment) {
+    uint16_t crc = calculateCRC16(segment);
+    return crc == 0;
 }

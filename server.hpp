@@ -18,13 +18,12 @@ private:
     int inputMethodMenu();
     string getUserInput();
     string saveToFile(const string &data);
-    void initTransfer(Segment *segment, sockaddr_in *client_addr);
-    void sendNextWindow(sockaddr_in *client_addr);
+    void initTransfer(Segment *segment, sockaddr_in *client_addr , unsigned int CRC);
+    void sendNextWindow(sockaddr_in *client_addr, unsigned int CRC);
     void handleFileTransferAck(Segment *segment, sockaddr_in *client_addr);
     void handleFINACK(Segment *segment, sockaddr_in *client_addr);
     string getFilePath();
     void startTimer(Segment segment, struct sockaddr_in *client_addr);
-
     string filePath;
 
     // sliding window
@@ -35,6 +34,9 @@ private:
     uint32_t handshakeSeqNum;
     std::unordered_map<uint32_t, std::thread> timers;
     std::mutex timerMutex;  
+    
+    //CRC disabled or not
+    int CRC;
 public:
     Server(const string &ip, int port);
     void run();

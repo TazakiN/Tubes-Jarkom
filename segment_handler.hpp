@@ -21,9 +21,9 @@ private:
 
     void initializeBuffer();
 
-    Segment createDataSegment(const uint8_t *data, uint32_t size);
+    Segment createDataSegment(const uint8_t *data, uint32_t size, unsigned int CRC);
 
-    void generateSegments();
+    void generateSegments(unsigned int CRC);
 
 public:
     SegmentHandler();
@@ -32,7 +32,7 @@ public:
     void setFileName(const char *newFilename);
     void setCurrentNumbers(uint32_t seqNum, uint32_t ackNum);
     uint8_t getWindowSize();
-    Segment *advanceWindow(uint8_t size);
+    Segment *advanceWindow(uint8_t size, unsigned int CRC);
 };
 
 #endif

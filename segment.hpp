@@ -40,6 +40,7 @@ struct Segment
 
     // options
     char filename[255];
+    unsigned int CRC : 1;
 
     uint16_t payloadSize : 16;
     uint8_t payload[MAX_PAYLOAD_SIZE];
@@ -95,10 +96,10 @@ Segment updateChecksum(Segment segment);
 bool isValidChecksum(Segment segment);
 
 
-uint16_t calculateCRC16(const uint8_t *data, size_t length);
+uint16_t calculateCRC16(Segment segment);
 
-void appendCRC16(uint8_t *data, size_t length);
+Segment appendCRC16(Segment segment);
 
-bool verifyCRC16(const uint8_t *data, size_t length);
+bool verifyCRC16(Segment segment);
 
 #endif
