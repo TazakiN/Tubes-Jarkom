@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const int TIMEOUT_INTERVAL = 1000;
+const int TIMEOUT_INTERVAL = 100;
 
 class Server : public Node
 {
@@ -26,6 +26,9 @@ private:
     void startTimer(Segment segment, struct sockaddr_in *client_addr);
     string filePath;
 
+    struct sockaddr_in server_addr;
+    struct sockaddr_in client_addr;
+
     // sliding window
     uint32_t SWS;
     uint32_t LAR;
@@ -33,10 +36,12 @@ private:
     uint32_t initialSeqNum;
     uint32_t handshakeSeqNum;
     std::unordered_map<uint32_t, std::thread> timers;
+
     std::mutex timerMutex;  
     
     //CRC disabled or not
     int CRC;
+
 public:
     Server(const string &ip, int port);
     void run();

@@ -4,13 +4,14 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <fstream>
+#include <arpa/inet.h>
 
 Client::Client(const std::string &ip, int port)
 {
     this->self_ip = ip;
     this->self_port = port;
+    this->server_port = port; // Initialize server_port
     connection = new TCPSocket(ip, port);
-    connection->listen();
     filenameReceived = false;
     CRC = 0;
     received_seg = 0;
@@ -26,7 +27,14 @@ void Client::run()
 
     // Receive the SYN-ACK from the server
     Segment synAckSeg;
-    int32_t bytes_received = connection->recv(&synAckSeg, sizeof(synAckSeg));
+    struct sockaddr_in src_addr;
+    int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
+    server_addr = src_addr;
+
+    this->server_addr.sin_family = AF_INET;
+    this->server_addr.sin_port = htons(server_port);
+    this->server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+
     if (bytes_received > 0)
     {
         handleMessage(&synAckSeg, nullptr);
@@ -122,7 +130,7 @@ void Client::sendACK(Segment *segment)
 {
     Segment ackSeg = ack(segment->ackNum, segment->seqNum + 1);
 
-    connection->send(server_ip, server_port, &ackSeg, sizeof(ackSeg));
+    connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
     printColored("[+] [Handshake] [A=" + std::to_string(ackSeg.ackNum) + "] Sent ACK to " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
     connection->setStatus(TCPStatusEnum::ESTABLISHED);
     printColored("[~] Connection established with " + server_ip + ":" + std::to_string(server_port), Color::PURPLE);
@@ -132,10 +140,10 @@ void Client::sendACK(Segment *segment)
 
 void Client::getServerInfo()
 {
-    printColored("[?] Please enter the server IP address: ", Color::YELLOW, false);
-    std::string ip;
+    printColored("[?] Please enter the server ip: ", Color::YELLOW, false);
+    string ip;
     std::cin >> ip;
-    server_ip = ip;
+    this->server_ip = ip;
 
     printColored("[?] Please enter the server port: ", Color::YELLOW, false);
     int port;
@@ -150,10 +158,14 @@ void Client::sendSYN()
     Segment synSeg = syn(initialSeqNum);
     synSeg = updateChecksum(synSeg);
 
+    struct sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(server_port);
+    servaddr.sin_addr.s_addr = inet_addr(server_ip.c_str());
 
     // Send the SYN segment to the server
-    printColored("[i] Trying to contact the sender at " + server_ip + ":" + std::to_string(server_port), Color::BLUE);
-    connection->send(server_ip, server_port, &synSeg, sizeof(synSeg));
+    printColored("[i] Trying to contact the server at port " + std::to_string(server_port), Color::BLUE);
+    connection->sendTo(&servaddr, &synSeg, sizeof(synSeg));
     printColored("[+] [Handshake] [S=" + std::to_string(synSeg.seqNum) + "] Sent SYN to server", Color::GREEN);
 
     connection->setStatus(TCPStatusEnum::SYN_SENT);
@@ -208,11 +220,12 @@ void Client::handleFileData(Segment *segment)
         return;
     }
 
+    receivedData.resize(std::max(receivedData.size(), static_cast<size_t>(totalDataSize)));
     receivedData.insert(receivedData.begin() + offset,
                         segment->payload,
                         segment->payload + segment->payloadSize);
-                        
-    receivedIndex.insert(receivedIndex.begin() + (offset/MAX_PAYLOAD_SIZE), 1);
+    receivedIndex.resize(std::max(receivedIndex.size(), static_cast<size_t>(offset / MAX_PAYLOAD_SIZE) + 1));
+    receivedIndex.insert(receivedIndex.begin() + (offset / MAX_PAYLOAD_SIZE), 1);
 
     if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum))
     {
@@ -227,7 +240,7 @@ void Client::handleFileData(Segment *segment)
 void Client::sendFileACK(Segment *segment)
 {
     Segment ackSeg = ack(segment->seqNum, segment->seqNum + MAX_PAYLOAD_SIZE);
-    connection->send(server_ip, server_port, &ackSeg, sizeof(ackSeg));
+    connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
     // printColored("[+] Sent ACK: SeqNum=" + to_string(ackSeg.ackNum), Color::GREEN);
     printColored("[+] [Established] [Seg " + to_string(((segment->seqNum - initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [A=" + to_string(ackSeg.ackNum) + "] Sent ACK", Color::GREEN);
 }
@@ -254,7 +267,7 @@ void Client::handleFileTransferFin()
 
     // Send FIN-ACK
     Segment finAckSegment = finAck();
-    connection->send(server_ip, server_port, &finAckSegment, sizeof(finAckSegment));
+    connection->sendTo(&server_addr, &finAckSegment, sizeof(finAckSegment));
     printColored("[+] [Closing] Sending FIN-ACK request to " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
 }
 
@@ -263,7 +276,7 @@ bool Client::isContiguous(uint32_t start, uint32_t end)
     for (uint32_t seq = start; seq <= end; seq += MAX_PAYLOAD_SIZE)
     {
         uint32_t offset = seq - initialSeqNum;
-        if (!receivedIndex[offset/MAX_PAYLOAD_SIZE])
+        if (!receivedIndex[offset / MAX_PAYLOAD_SIZE])
         {
             return false;
         }

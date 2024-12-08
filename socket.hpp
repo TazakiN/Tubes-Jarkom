@@ -54,8 +54,6 @@ public:
     int32_t getPort();
 
     void listen();
-    void send(std::string ip, int32_t port, void *dataStream, uint32_t dataSize);
-    int32_t recv(void *buffer, uint32_t length);
     int32_t recvFrom(void *buffer, uint32_t length, sockaddr_in *src_addr);
     void sendTo(sockaddr_in *dest_addr, void *dataStream, uint32_t dataSize);
     void close();

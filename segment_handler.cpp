@@ -89,8 +89,8 @@ void SegmentHandler::generateSegments(unsigned int CRC)
     initializeBuffer();
 
     uint32_t remainingData = dataSize - dataIndex;
-    uint8_t segmentsToGenerate = std::min(windowSize,
-                                          static_cast<uint8_t>((remainingData + MAX_PAYLOAD_SIZE - 1) / MAX_PAYLOAD_SIZE));
+    uint8_t segmentsToGenerate = std::min(static_cast<uint32_t>(windowSize),
+                                          (remainingData + MAX_PAYLOAD_SIZE - 1) / MAX_PAYLOAD_SIZE);
 
     for (uint8_t i = 0; i < segmentsToGenerate; i++)
     {
