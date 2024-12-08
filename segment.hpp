@@ -91,4 +91,11 @@ Segment updateChecksum(Segment segment);
  */
 bool isValidChecksum(Segment segment);
 
+
+uint16_t calculateCRC16(const uint8_t *data, size_t length);
+
+void appendCRC16(uint8_t *data, size_t length);
+
+bool verifyCRC16(const uint8_t *data, size_t length);
+
 #endif
