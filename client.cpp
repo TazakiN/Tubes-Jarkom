@@ -56,6 +56,13 @@ void Client::run()
 void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
 {
     Segment *segment = (Segment *)buffer;
+
+    if (!isValidChecksum(*segment))
+    {
+        printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
+        return;
+    }
+
     if (segment->flags == SYN_ACK_FLAG)
     {
         printColored("[+] [Handshake] [A=" + std::to_string(segment->ackNum) + "] [S=" + std::to_string(segment->seqNum) + "] Received SYN-ACK request from " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
@@ -173,6 +180,12 @@ void Client::sendSYN()
 
 void Client::handleFileData(Segment *segment)
 {
+    if (!isValidChecksum(*segment))
+    {
+        printColored("[!] Invalid checksum in data segment, discarding", Color::RED);
+        return;
+    }
+
     if (segment->seqNum <= LFR || segment->seqNum > LAF)
     {
         printColored("[!] Out-of-window packet discarded: SeqNum=" + to_string(segment->seqNum), Color::RED);
