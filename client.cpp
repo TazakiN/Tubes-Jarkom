@@ -188,11 +188,12 @@ void Client::handleFileData(Segment *segment)
         return;
     }
 
+    receivedData.resize(std::max(receivedData.size(), static_cast<size_t>(totalDataSize)));
     receivedData.insert(receivedData.begin() + offset,
                         segment->payload,
                         segment->payload + segment->payloadSize);
-                        
-    receivedIndex.insert(receivedIndex.begin() + (offset/MAX_PAYLOAD_SIZE), 1);
+    receivedIndex.resize(std::max(receivedIndex.size(), static_cast<size_t>(offset / MAX_PAYLOAD_SIZE) + 1));
+    receivedIndex.insert(receivedIndex.begin() + (offset / MAX_PAYLOAD_SIZE), 1);
 
     if (isContiguous(LFR + MAX_PAYLOAD_SIZE, segment->seqNum))
     {

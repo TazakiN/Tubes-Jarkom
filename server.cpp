@@ -234,6 +234,7 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     SegmentHandler *segmentHandler = connection->getSegmentHandler();
     uint8_t windowSize = segmentHandler->getWindowSize();
     int adv_size = (SWS - (LFS - LAR)) / MAX_PAYLOAD_SIZE;
+
     Segment *segments = segmentHandler->advanceWindow(adv_size);
     LFS = LAR + SWS;
 
@@ -245,6 +246,16 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
     if (segments == nullptr)
     {
         // All data has been sent
+        // check whether all have been acked
+        {
+            std::lock_guard<std::mutex> lock(timerMutex);
+            if (!timers.empty()) {
+                printColored("[~] [Established] Waiting for segments to be ACKed", Color::YELLOW);
+                return;
+            }
+        }
+
+        // all data have been sent
         Segment finSegment = fin();
         // finSegment = updateChecksum(finSegment);
         connection->sendTo(client_addr, &finSegment, sizeof(finSegment));
@@ -257,10 +268,10 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
         if (segments[i].payloadSize > 0)
         {
             // segments[i] = updateChecksum(segments[i]);
-            connection->sendTo(client_addr, &segments[i], sizeof(Segment));
-            // if (rand()%2 == 1) {
-            //     connection->sendTo(client_addr, &segments[i], sizeof(Segment));
-            // }
+            // connection->sendTo(client_addr, &segments[i], sizeof(Segment));
+            if (rand()%2 == 1) {
+                connection->sendTo(client_addr, &segments[i], sizeof(Segment));
+            }
             printColored("[+] [Established] [Seg " + to_string(((segments[i].seqNum - initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segments[i].seqNum) + "] Sent", Color::GREEN);
 
             startTimer(segments[i], client_addr);
@@ -280,10 +291,10 @@ void Server::startTimer(Segment segment, struct sockaddr_in *client_addr)
 
         if (timers.find(segment.seqNum) != timers.end()) {
             printColored("[!] [Timeout] [Seg " + std::to_string(((segment.seqNum-initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [S=" + to_string(segment.seqNum) + "]. Retransmitting...", Color::RED);
-            connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
-            // if (rand()%2 == 1) {
-            //     connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
-            // }
+            // connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
+            if (rand()%2 == 1) {
+                connection->sendTo(client_addr, (void*)&segment, sizeof(segment));
+            }
             timers.erase(segment.seqNum);
             startTimer(segment, client_addr);
         } });
@@ -296,7 +307,7 @@ void Server::handleFileTransferAck(Segment *segment, struct sockaddr_in *client_
 {
     if (segment->ackNum - MAX_PAYLOAD_SIZE > LAR)
     {
-        printColored("[+] ACK received for packet with sequence number: " + std::to_string(LAR), Color::GREEN);
+        printColored("[+] ACK received for packet with sequence number: " + std::to_string(segment->ackNum - MAX_PAYLOAD_SIZE), Color::GREEN);
         {
             std::lock_guard<std::mutex> lock(timerMutex);
             for (u_int32_t i = LAR+MAX_PAYLOAD_SIZE; i <= segment->ackNum-MAX_PAYLOAD_SIZE; i += MAX_PAYLOAD_SIZE){

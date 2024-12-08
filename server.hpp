@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const int TIMEOUT_INTERVAL = 1000;
+const int TIMEOUT_INTERVAL = 100;
 
 class Server : public Node
 {
