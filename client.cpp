@@ -35,9 +35,6 @@ void Client::run()
     this->server_addr.sin_port = htons(server_port);
     this->server_addr.sin_addr.s_addr = inet_addr(server_ip.c_str());
 
-    inet_ntop(AF_INET, &(server_addr.sin_addr), &server_ip[0], INET_ADDRSTRLEN);
-    printColored("[i] Server address: " + server_ip + ":" + std::to_string(ntohs(server_addr.sin_port)), Color::BLUE);
-
     if (bytes_received > 0)
     {
         handleMessage(&synAckSeg, nullptr);
@@ -152,7 +149,7 @@ void Client::sendSYN()
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(server_port);
-    servaddr.sin_addr.s_addr = inet_addr("172.23.146.131");
+    servaddr.sin_addr.s_addr = inet_addr(server_ip.c_str());
 
     // Send the SYN segment to the server
     printColored("[i] Trying to contact the server at port " + std::to_string(server_port), Color::BLUE);
