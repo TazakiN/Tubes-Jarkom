@@ -101,8 +101,6 @@ uint8_t *calculateChecksum(Segment segment)
 Segment updateChecksum(Segment segment) {
     uint8_t *checksumBytes = calculateChecksum(segment);
     segment.checksum = (checksumBytes[0] << 8) | checksumBytes[1];
-    printColored("Call Update Checksum", Color::RED);
-    printColored(std::to_string(segment.checksum), Color::RED);
     delete[] checksumBytes;
     return segment;
 }
@@ -112,9 +110,6 @@ bool isValidChecksum(Segment segment) {
     uint8_t *calculatedChecksum = calculateChecksum(segment);
     uint16_t calculated = (calculatedChecksum[0] << 8) | calculatedChecksum[1];
     delete[] calculatedChecksum;
-
-    printColored(std::to_string(originalChecksum), Color::RED);
-    printColored(std::to_string(calculated), Color::RED);
     return originalChecksum == calculated;
 }
 uint16_t calculateCRC16(Segment segment) {

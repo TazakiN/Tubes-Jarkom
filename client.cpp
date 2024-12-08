@@ -73,7 +73,7 @@ void Client::handleMessage(void *buffer, struct sockaddr_in *src_addr)
     // Apabila metode error detectionnya checksum (default)
     if ((segment->CRC == 0) && (!isValidChecksum(*segment)))
     {
-        printColored("[!HANDLE MESSAGE] Invalid checksum detected, discarding segment", Color::RED);
+        printColored("[!] Invalid checksum detected, discarding segment", Color::RED);
         return;
     }
     // Apabila metode error detectionnya CRC
@@ -204,7 +204,7 @@ void Client::handleFileData(Segment *segment)
     // Apabila metode error detectionnya checksum (default)
     if ((segment->CRC == 0) && (!isValidChecksum(*segment)))
     {
-        printColored("[!HANDLE FILE DATA] Invalid checksum in data segment, discarding", Color::RED);
+        printColored("[!] Invalid checksum in data segment, discarding", Color::RED);
         return;
     }
     // Apabila metode error detectionnya CRC
