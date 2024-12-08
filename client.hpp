@@ -37,6 +37,8 @@ private:
     void sendFileACK(Segment *segment);
     bool isContiguous(uint32_t start, uint32_t end);
 
+    sockaddr_in server_addr;
+
     // sliding window
     uint32_t RWS;
     uint32_t LFR;

@@ -10,8 +10,11 @@ Client::Client(const std::string &ip, int port)
     this->self_ip = ip;
     this->self_port = port;
     connection = new TCPSocket(ip, port);
-    connection->listen(false);
     filenameReceived = false;
+
+    this->server_addr.sin_family = AF_INET;
+    this->server_addr.sin_port = htons(server_port);
+    this->server_addr.sin_addr.s_addr = INADDR_ANY;
 
     received_seg = 0;
 }
@@ -28,7 +31,8 @@ void Client::run()
     Segment synAckSeg;
     struct sockaddr_in src_addr;
     int32_t bytes_received = connection->recvFrom(&synAckSeg, sizeof(synAckSeg), &src_addr);
-    printColored(std::to_string(src_addr.sin_addr.s_addr), Color::GREEN);
+    server_addr = src_addr;
+
     if (bytes_received > 0)
     {
         handleMessage(&synAckSeg, nullptr);
@@ -112,7 +116,7 @@ void Client::sendACK(Segment *segment)
 {
     Segment ackSeg = ack(segment->ackNum, segment->seqNum + 1);
 
-    connection->send(server_ip, server_port, &ackSeg, sizeof(ackSeg));
+    connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
     printColored("[+] [Handshake] [A=" + std::to_string(ackSeg.ackNum) + "] Sent ACK to " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
     connection->setStatus(TCPStatusEnum::ESTABLISHED);
     printColored("[~] Connection established with " + server_ip + ":" + std::to_string(server_port), Color::PURPLE);
@@ -122,11 +126,6 @@ void Client::sendACK(Segment *segment)
 
 void Client::getServerInfo()
 {
-    // printColored("[?] Please enter the server IP address: ", Color::YELLOW, false);
-    // std::string ip;
-    // std::cin >> ip;
-    // server_ip = ip;
-
     printColored("[?] Please enter the server port: ", Color::YELLOW, false);
     int port;
     std::cin >> port;
@@ -140,9 +139,14 @@ void Client::sendSYN()
     Segment synSeg = syn(initialSeqNum);
     synSeg = updateChecksum(synSeg);
 
+    struct sockaddr_in servaddr;
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(server_port);
+    servaddr.sin_addr.s_addr = INADDR_ANY;
+
     // Send the SYN segment to the server
-    printColored("[i] Trying to contact the sender at " + server_ip + ":" + std::to_string(server_port), Color::BLUE);
-    connection->send(server_ip, server_port, &synSeg, sizeof(synSeg));
+    printColored("[i] Trying to contact the server at port " + std::to_string(server_port), Color::BLUE);
+    connection->sendTo(&servaddr, &synSeg, sizeof(synSeg));
     printColored("[+] [Handshake] [S=" + std::to_string(synSeg.seqNum) + "] Sent SYN to server", Color::GREEN);
 
     connection->setStatus(TCPStatusEnum::SYN_SENT);
@@ -210,7 +214,7 @@ void Client::handleFileData(Segment *segment)
 void Client::sendFileACK(Segment *segment)
 {
     Segment ackSeg = ack(segment->seqNum, segment->seqNum + MAX_PAYLOAD_SIZE);
-    connection->send(server_ip, server_port, &ackSeg, sizeof(ackSeg));
+    connection->sendTo(&server_addr, &ackSeg, sizeof(ackSeg));
     // printColored("[+] Sent ACK: SeqNum=" + to_string(ackSeg.ackNum), Color::GREEN);
     printColored("[+] [Established] [Seg " + to_string(((segment->seqNum - initialSeqNum) / MAX_PAYLOAD_SIZE) + 1) + "] [A=" + to_string(ackSeg.ackNum) + "] Sent ACK", Color::GREEN);
 }
@@ -234,7 +238,7 @@ void Client::handleFileTransferFin()
     connection->setStatus(TCPStatusEnum::FIN_WAIT_1);
     // Send FIN-ACK
     Segment finAckSegment = finAck();
-    connection->send(server_ip, server_port, &finAckSegment, sizeof(finAckSegment));
+    connection->sendTo(&server_addr, &finAckSegment, sizeof(finAckSegment));
     printColored("[+] [Closing] Sending FIN-ACK request to " + server_ip + ":" + std::to_string(server_port), Color::GREEN);
 }
 

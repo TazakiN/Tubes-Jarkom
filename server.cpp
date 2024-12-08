@@ -22,12 +22,11 @@ void Server::run()
     if (retFlag)
         return;
 
-    connection->listen(true);
+    connection->listen();
     printColored("[i] Listening to the broadcast port for clients.", Color::BLUE);
     while (true)
     {
         Segment receivedSegment;
-        struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
 
         int32_t bytes_received = connection->recvFrom(&receivedSegment, sizeof(receivedSegment), &client_addr);
@@ -249,7 +248,8 @@ void Server::sendNextWindow(struct sockaddr_in *client_addr)
         // check whether all have been acked
         {
             std::lock_guard<std::mutex> lock(timerMutex);
-            if (!timers.empty()) {
+            if (!timers.empty())
+            {
                 printColored("[~] [Established] Waiting for segments to be ACKed", Color::YELLOW);
                 return;
             }
