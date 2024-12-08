@@ -2,6 +2,7 @@
 #define SEGMENT_HPP
 
 #include <cstdint>
+#include <cstddef>
 
 const uint32_t MAX_PAYLOAD_SIZE = 1460;
 // const uint32_t MAX_PAYLOAD_SIZE = 100;
@@ -92,5 +93,12 @@ Segment updateChecksum(Segment segment);
  * Check if a TCP Segment has a valid checksum
  */
 bool isValidChecksum(Segment segment);
+
+
+uint16_t calculateCRC16(const uint8_t *data, size_t length);
+
+void appendCRC16(uint8_t *data, size_t length);
+
+bool verifyCRC16(const uint8_t *data, size_t length);
 
 #endif

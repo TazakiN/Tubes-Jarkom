@@ -1,6 +1,8 @@
 #include "segment.hpp"
 #include <cstring>
 #include <netinet/in.h>
+#define CRC16_POLY 0x8005   // CRC-16: 1 + x² + x¹⁵ + x¹⁶
+#define CRC16_INITIAL 0xFFFF // Inisialisasi nilai CRC
 
 Segment createSegment()
 {
@@ -57,10 +59,10 @@ uint8_t *calculateChecksum(Segment segment)
 {
     segment.checksum = 0;
 
-    size_t headerSize = sizeof(Segment);
+    size_t headerSize = segment.payloadSize;
 
     uint16_t buffer[headerSize / 2 + (headerSize % 2)];
-    std::memcpy(buffer, &segment, headerSize);
+    std::memcpy(buffer, &segment.payload, headerSize);
 
     size_t length = headerSize / 2;
     uint32_t sum = 0;
@@ -106,4 +108,35 @@ bool isValidChecksum(Segment segment)
     delete[] calculatedChecksum;
 
     return originalChecksum == calculated;
+}
+
+uint16_t calculateCRC16(const uint8_t *data, size_t length) {
+    uint16_t crc = CRC16_INITIAL;
+
+    for (size_t i = 0; i < length; i++) {
+        crc ^= (data[i] << 8); //Data digeser 8 abistu diXOR
+
+        for (int j = 0; j < 8; ++j) {
+            if (crc & 0x8000) {
+                crc = (crc << 1) ^ CRC16_POLY; // Kalau bit paling kiri nol, harus di shift dan XOR
+            } else {
+                crc <<= 1; //Shift aja
+            }
+        }
+    }
+
+    return crc;
+}
+
+
+void appendCRC16(uint8_t *data, size_t length) {
+    uint16_t crc = calculateCRC16(data, length);
+    data[length] = (crc >> 8) & 0xFF; 
+    data[length + 1] = crc & 0xFF;   
+}
+
+
+bool verifyCRC16(const uint8_t *data, size_t length) {
+    uint16_t crc = calculateCRC16(data, length);
+    return crc == 0; 
 }
