@@ -45,7 +45,7 @@ void TCPSocket::listen()
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    addr.sin_addr.s_addr = INADDR_ANY;
     memset(&(addr.sin_zero), '\0', 8);
 
     // Bind the socket
@@ -70,6 +70,13 @@ int32_t TCPSocket::recvFrom(void *buffer, uint32_t length, struct sockaddr_in *s
 
 void TCPSocket::sendTo(struct sockaddr_in *dest_addr, void *dataStream, uint32_t dataSize)
 {
+    int broadcastEnable = 1;
+    if (setsockopt(socket, SOL_SOCKET, SO_BROADCAST, &broadcastEnable, sizeof(broadcastEnable)) < 0)
+    {
+        perror("Error setting broadcast permission");
+        exit(1);
+    }
+
     ssize_t bytes_sent = sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)dest_addr, sizeof(*dest_addr));
     if (bytes_sent < 0)
     {

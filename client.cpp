@@ -143,11 +143,6 @@ void Client::sendACK(Segment *segment)
 
 void Client::getServerInfo()
 {
-    printColored("[?] Please enter the server ip: ", Color::YELLOW, false);
-    string ip;
-    std::cin >> ip;
-    this->server_ip = ip;
-
     printColored("[?] Please enter the server port: ", Color::YELLOW, false);
     int port;
     std::cin >> port;
@@ -164,7 +159,7 @@ void Client::sendSYN()
     struct sockaddr_in servaddr;
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(server_port);
-    servaddr.sin_addr.s_addr = inet_addr(server_ip.c_str());
+    servaddr.sin_addr.s_addr = INADDR_BROADCAST;
 
     int retries = 1000;
     bool synAckReceived = false;
@@ -184,7 +179,7 @@ void Client::sendSYN()
         if (bytes_received > 0 && synAckSeg.flags == SYN_ACK_FLAG)
         {
             server_addr = src_addr;
-            server_ip = inet_ntoa(servaddr.sin_addr);
+            server_ip = inet_ntoa(server_addr.sin_addr);
             server_port = ntohs(server_addr.sin_port);
             synAckReceived = true;
             connection->unsetTimeout();
