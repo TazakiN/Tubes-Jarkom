@@ -15,6 +15,7 @@ Client::Client(const std::string &ip, int port)
     filenameReceived = false;
     CRC = 0;
     received_seg = 0;
+    totalDataSize = 0;
 
     connection->listen();
 }
